@@ -45,6 +45,7 @@ COLOR_SECRET_DOOR = (150,150,150)
 COLOR_BARS = (140, 140, 150) # Cor metálica para a prisão
 COLOR_PANEL = (200, 200, 200)
 COLOR_ENG = (200, 200, 100)
+COLOR_SHOP = (255, 215, 0) # Dourado para a loja
 
 # Tiles
 TILE_WALL, TILE_FLOOR = '#', '.'
@@ -63,6 +64,7 @@ TILE_PRISON = "p"
 TILE_CAMERA = "C"
 TILE_PANEL = "&"
 TILE_DECOY = chr(0x0394) #delta
+TILE_SHOP = '$'
 
 SOUND_CACHE = {}
 LAST_BEEP_T = 0
@@ -110,6 +112,12 @@ TEXTS = {
         "slot_txt": "({}) - Slot {} {}",
         "slot_del": "(X + Number) DELETE SLOT",
         "slot_back": "(ESC) Back",
+        "log_shop_enter": "SYSTEM: SHOP ACCESSED. Press a letter then an inventory number to swap.",
+        "log_shop_inst": "SYSTEM: Trades left: {}.",
+        "log_shop_swap": "SYSTEM: Swapped {} for {}!",
+        "log_shop_closed": "SYSTEM: Shop closed.",
+        "log_shop_visited": "SYSTEM: The shop is already closed.",
+        "log_shop_sel": "SYSTEM: Selected {} ({}). Choose your inventory item (1-9).",
         "log_intro1": "Descend to level 12 to find the great Book and return with the truth!",
         "log_intro2": "On your journey, find the message and broadcast it to the world!",
         "log_intro3": "Do this stealthily! The enemy wants to stop the good news from reaching everyone!",
@@ -209,7 +217,8 @@ TEXTS = {
         "npc_Tiles_Traps": "Trap",
         "npc_Tiles_Traps_plural": "Traps: {}",
         "npc_Tiles_Panel": "Power panel",
-        "npc_Tiles_Panel_plural": "Power panels: {}"
+        "npc_Tiles_Panel_plural": "Power panels: {}",
+        "npc_Tiles_Shop": "Shop",
     },
     "PT": {
         "sub_title": "Um Jogo Roguelike Furtivo",
@@ -251,6 +260,12 @@ TEXTS = {
         "slot_txt": "({}) - Slot {} {}",
         "slot_del": "(X + Número) APAGAR SLOT",
         "slot_back": "(ESC) Voltar",
+        "log_shop_enter": "SISTEMA: LOJA ACESSADA. Pressione uma letra e depois um número do inventário para trocar.",
+        "log_shop_inst": "SISTEMA: Trocas restantes: {}.",
+        "log_shop_swap": "SISTEMA: Você trocou {} por {}!",
+        "log_shop_closed": "SISTEMA: A loja fechou.",
+        "log_shop_visited": "SISTEMA: A loja já está fechada.",
+        "log_shop_sel": "SISTEMA: Selecionado {} ({}). Escolha seu item do inventário (1-9).",
         "log_intro1": "Desça até o nível 12 para encontrar o grande Livro e retorne com a verdade!",
         "log_intro2": "Em sua jornada, encontre a mensagem e transmita-a ao mundo!",
         "log_intro3": "Faça isso de maneira furtiva! O inimigo quer impedir que as boas notícias cheguem a todos!",
@@ -350,7 +365,8 @@ TEXTS = {
         "npc_Tiles_Traps": "Armadilha",
         "npc_Tiles_Traps_plural": "Armadilhas: {}",
         "npc_Tiles_Panel": "Painel elétrico",
-        "npc_Tiles_Panel_plural": "Paineis elétrico: {}"
+        "npc_Tiles_Panel_plural": "Paineis elétrico: {}",
+        "npc_Tiles_Shop": "Loja",
         
     }
 }
@@ -469,6 +485,9 @@ class Tiles_Panel(Entity):
         super().__init__(x, y)
         self.hits = 0
 
+class Tiles_Shop(Entity):
+    def __init__(self, x, y):
+        super().__init__(x, y)
 
 class Ally(Entity):
     def __init__(self, x, y):
@@ -528,7 +547,7 @@ class Eng(Entity):
         else:
             nx, ny = self.x + self.dir_x, self.y + self.dir_y
             if (0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT and 
-                map_data[ny][nx] not in [TILE_WALL, 5, TILE_SECRET_DOOR, TILE_SECRET_FLOOR, TILE_BARS_1, TILE_BARS_2, TILE_PANEL] and 
+                map_data[ny][nx] not in [TILE_WALL, 5, TILE_SECRET_DOOR, TILE_SECRET_FLOOR, TILE_BARS_1, TILE_BARS_2, TILE_PANEL, TILE_SHOP] and 
                 (nx, ny) not in occupied_tiles and (nx != player_x or ny != player_y)):
                 self.x, self.y = nx, ny
             else:
@@ -602,7 +621,7 @@ class Guard(Entity):
             nx, ny = self.x + self.dir_x, self.y + self.dir_y
             if nx == player_x and ny == player_y and not self.hacked and not INVENSIVEL: return "CAUGHT"
             if (0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT and 
-                map_data[ny][nx] not in [TILE_WALL, 5, TILE_SECRET_DOOR, TILE_SECRET_FLOOR, TILE_BARS_1, TILE_BARS_2, TILE_PANEL] and 
+                map_data[ny][nx] not in [TILE_WALL, 5, TILE_SECRET_DOOR, TILE_SECRET_FLOOR, TILE_BARS_1, TILE_BARS_2, TILE_PANEL, TILE_SHOP] and 
                 (nx, ny) not in occupied_tiles):
                 self.x, self.y = nx, ny
             else:
@@ -638,7 +657,7 @@ class Drone(Entity):
             nx, ny = self.x + self.dir_x, self.y + self.dir_y
             if nx == player_x and ny == player_y and not self.hacked and not INVENSIVEL: return "CAUGHT"
             if (0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT and 
-                map_data[ny][nx] not in [TILE_WALL, TILE_TERMINAL, TILE_SECRET_DOOR, TILE_SECRET_FLOOR, TILE_BARS_1, TILE_BARS_2, TILE_PANEL] and
+                map_data[ny][nx] not in [TILE_WALL, TILE_TERMINAL, TILE_SECRET_DOOR, TILE_SECRET_FLOOR, TILE_BARS_1, TILE_BARS_2, TILE_PANEL, TILE_SHOP] and
                 (nx, ny) not in occupied_tiles): 
                 self.x, self.y = nx, ny
             else: 
@@ -717,7 +736,7 @@ class Dog(Entity):
                 nx, ny = self.x + self.dir_x, self.y + self.dir_y
 
             if (0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT and 
-                map_data[ny][nx] not in [TILE_WALL, 5, TILE_SECRET_DOOR, TILE_SECRET_FLOOR, TILE_BARS_1, TILE_BARS_2, TILE_PANEL] and 
+                map_data[ny][nx] not in [TILE_WALL, 5, TILE_SECRET_DOOR, TILE_SECRET_FLOOR, TILE_BARS_1, TILE_BARS_2, TILE_PANEL, TILE_SHOP] and 
                 (nx, ny) not in occupied_tiles and 
                 (nx != player_x or ny != player_y)):
                 
@@ -824,10 +843,6 @@ class Game:
         self.smoke_tile = pygame.Surface((TILE_WIDTH, TILE_HEIGHT))
         self.smoke_tile.fill((200, 200, 210))
         
-        self.add_log(self.t("log_intro1"))
-        self.add_log(self.t("log_intro2"))
-        self.add_log(self.t("log_intro3"))
-        
         self.game_start_time = pygame.time.get_ticks()
 
     def t(self, key, *args):
@@ -859,7 +874,9 @@ class Game:
             "player_heat": self.player_heat,
             "dark": self.dark_turns,
             "n_guards": self.number_guards,
-            "decoys": self.decoys
+            "decoys": self.decoys,
+            "shop_visited": self.shop_visited,
+            "shop_trades_left": self.shop_trades_left
         }
 
     def load_level(self, level_num):
@@ -886,7 +903,8 @@ class Game:
         self.dark_turns = data.get("dark", 0)
         self.number_guards = data.get("n_guards",0)
         self.generate_more_enemies()
-        #print(len(self.guards))    
+        self.shop_visited = data.get("shop_visited")
+        self.shop_trades_left = data.get("shop_trades_left",0)
     
     def find_path(self, start_x, start_y, goal_x, goal_y):
         open_list = [(0, start_x, start_y)]
@@ -894,7 +912,7 @@ class Game:
         g_score = {(start_x, start_y): 0}
         
         # Tiles que o pathfinding vai desviar
-        blocked_tiles = [TILE_WALL, TILE_SECRET_DOOR, TILE_STAIR_DOWN, TILE_STAIR_UP, TILE_SPIKES, TILE_SENSOR, TILE_DRUNK, TILE_LASER_V, TILE_LASER_H, TILE_TERMINAL, TILE_MESSAGE, TILE_BIBLE, TILE_BARS_1, TILE_BARS_2, TILE_CAMERA, TILE_PANEL]
+        blocked_tiles = [TILE_WALL, TILE_SECRET_DOOR, TILE_STAIR_DOWN, TILE_STAIR_UP, TILE_SPIKES, TILE_SENSOR, TILE_DRUNK, TILE_LASER_V, TILE_LASER_H, TILE_TERMINAL, TILE_MESSAGE, TILE_BIBLE, TILE_BARS_1, TILE_BARS_2, TILE_CAMERA, TILE_PANEL,TILE_SHOP]
    
         
         while open_list:
@@ -958,7 +976,7 @@ class Game:
                 nx, ny = cx + dx, cy + dy
                 if 0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT:
                     # Inclui barras como obstáculos
-                    if self.map_data[ny][nx] not in [TILE_WALL, 5, TILE_SECRET_DOOR, TILE_SECRET_FLOOR, TILE_BARS_1, TILE_BARS_2] and (nx, ny) not in visited:
+                    if self.map_data[ny][nx] not in [TILE_WALL, 5, TILE_SECRET_DOOR, TILE_SECRET_FLOOR, TILE_BARS_1, TILE_BARS_2, TILE_SHOP] and (nx, ny) not in visited:
                         visited.add((nx, ny))
                         queue.append((nx, ny, path + [(nx, ny)]))
         return []
@@ -1003,7 +1021,9 @@ class Game:
                 "player_heat": data.get("player_heat", 0),
                 "dark": data.get("dark", 0),
                 "faith": data.get("faith", 0),
-                "n_guards": data.get("n_guards",0)
+                "n_guards": data.get("n_guards",0),
+                "shop_visited": data.get("shop_visited"),
+                "shop_trades_left": data.get("shop_trades_left",0)
             }
             
         data_to_save = {
@@ -1019,6 +1039,8 @@ class Game:
             "player_invisible": self.player_invisible,
             "dark_turns": self.dark_turns,
             "faith": self.player_faith,
+            "shop_visited": self.shop_visited,
+            "shop_trades_left": self.shop_trades_left,
             "worlds": serialized_worlds,
             "total_turns": self.total_turns,
             "accumulated_time": self.accumulated_time + (pygame.time.get_ticks() - self.game_start_time if self.state == "PLAYING" else 0),
@@ -1069,6 +1091,8 @@ class Game:
             self.stats_energy_down = data.get("stat_edown",0)
             self.stats_hack = data.get("stat_hack",0)
             self.caught_by_name = data.get("caught_by_name", "npc_Unknown")
+            self.shop_visited = data.get("shop_visited", False)
+            self.shop_trades_left = data.get("shop_trades_left",0)
             
             self.worlds = {}
             for lvl_str, lvl_data in data["worlds"].items():
@@ -1151,6 +1175,8 @@ class Game:
                         new_t = Tiles_Traps(t["x"],t["y"])
                     elif name == "Tiles_Panel":
                         new_t = Tiles_Panel(t["x"],t["y"])
+                    elif name == "Tiles_Shop":
+                        new_t = Tiles_Shop(t["x"],t["y"])
                     tiles.append(new_t)
                 
                 self.worlds[lvl_num] = {
@@ -1366,7 +1392,11 @@ class Game:
         self.message_found = False 
         self.guards, self.cameras, self.drones, self.lasers, self.dogs, self.allies, self.tiles, self.decoys, self.engs = [], [], [], [], [], [], [], [], []
         self.msg_timer, self.msg_text = 0, ""
-
+        self.shop_visited = False
+        self.shop_active = False
+        self.shop_inventory = []
+        self.shop_trades_left = 0
+        self.pending_trade_index = -1
         self.dark_turns = 0
         self.panel_x, self.panel_y = -1, -1 # Salva a posição do painel para os NPCs
         
@@ -1562,6 +1592,20 @@ class Game:
                     self.map_data[py][px] = TILE_PANEL
                     self.tiles.append(Tiles_Panel(px, py))
                     self.panel_x, self.panel_y = px, py
+        # --- Geração da Loja (Níveis 6 e 12 com 75% de chance) ---
+        if self.level ==1: #in (6, 12) and random.random() < 0.75: #normal será 6 e 12
+            # Pega uma sala aleatória que não seja a primeira
+            self.shop_trades_left = 2 if self.level < 8 else 3
+            if len(self.rooms) > 1:
+                shop_room = random.choice(self.rooms[1:])
+                valid_spots = []
+                for y in range(shop_room.y1 + 1, shop_room.y2):
+                    for x in range(shop_room.x1 + 1, shop_room.x2):
+                        if self.map_data[y][x] == TILE_FLOOR:
+                            valid_spots.append((x, y))
+                if valid_spots:
+                    px, py = random.choice(valid_spots)
+                    self.map_data[py][px] = TILE_SHOP
         
         self.update_player_fov()
 
@@ -1662,7 +1706,16 @@ class Game:
         nx = self.player_x + dx
         ny = self.player_y + dy
         heat = int(1+30*(1+(self.player_heat/10)))
-
+        
+        # Fecha a loja se o jogador se mover para longe
+        if getattr(self, 'shop_active', False) and (dx != 0 or dy != 0):
+            nx, ny = self.player_x + dx, self.player_y + dy
+            if 0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT and self.map_data[ny][nx] != TILE_SHOP:
+                self.shop_active = False
+                self.pending_trade_index = -1
+                self.add_log(self.t("log_shop_closed"))
+                play_beep(150, 0.2)
+        
         if dx != 0 or dy != 0:
             if self.player_faith < 100 and self.turn_count % 12 == 0:
                 self.player_faith +=1
@@ -1756,7 +1809,33 @@ class Game:
                         else: 
                             play_beep(440, 0.1)
                 
-                # Dentro de move_entities, junto das verificações de TILE_TERMINAL, TILE_ITEM, etc:
+                elif tile == TILE_SHOP:
+                    if not self.shop_visited:
+                        
+                        self.shop_active = True
+                        #self.shop_trades_left = 2 if self.level < 8 else 3
+                        items_pool = ["EMP", "KIT", "INV", "HACK", "DECOY"]
+                        self.shop_inventory = [random.choice(items_pool) for _ in range(5)]
+                        self.pending_trade_index = -1
+                        
+                        self.add_log(self.t("log_shop_enter"))
+                        shop_str = ", ".join([f"{chr(97+i)}) {item}" for i, item in enumerate(self.shop_inventory)])
+                        self.add_log(shop_str)
+                        self.add_log(self.t("log_shop_inst", self.shop_trades_left))
+                        play_beep(600, 0.2)
+                        
+                    elif self.shop_active:
+                        self.add_log(self.t("log_shop_inst", self.shop_trades_left))
+                    else:
+                        self.add_log(self.t("log_shop_visited"))
+                        play_beep(150, 0.2)
+                    
+                    # O jogador apenas esbarra na loja, não sobe nela
+                    if not self.shop_visited:
+                        self.player_x, self.player_y = self.player_x, self.player_y
+                    else:
+                        self.player_x, self.player_y = self.player_x + dx, self.player_y +dy
+                
                 elif tile == TILE_PANEL:
                     panel = next((p for p in self.tiles if isinstance(p, Tiles_Panel) and p.x == nx and p.y == ny), None)
                     if panel:
@@ -2282,6 +2361,8 @@ class Game:
                             else:
                                 color = COLOR_STAIRS_LOCKED
                         elif char == TILE_ITEM: color = COLOR_ITEM
+                        elif char == TILE_SHOP: 
+                            color = COLOR_SHOP if not getattr(self, 'shop_visited', False) else (100, 100, 100)
                         elif char == TILE_MESSAGE: color = COLOR_MSG_NOTE
                         elif char == TILE_BIBLE:
                             if self.terminal_hacked:
@@ -2496,6 +2577,20 @@ class Game:
             y_curr += 20
             self.virtual_surface.blit(self.small_font.render(self.t("help_info"), True, (120,120,120)), (sx, y_curr))
             
+            
+            # --- HUD DA LOJA ---
+            if getattr(self, 'shop_active', False):
+                y_curr += 20
+                self.virtual_surface.blit(self.font.render("--- LOJA ---", True, COLOR_SHOP), (sx, y_curr))
+                y_curr += 25
+                self.virtual_surface.blit(self.small_font.render(f"Trocas: {self.shop_trades_left}", True, (200, 200, 200)), (sx, y_curr))
+                y_curr += 20
+                for i, s_item in enumerate(self.shop_inventory):
+                    # Destaca a letra de amarelo se foi selecionada
+                    c_color = (255, 255, 0) if getattr(self, 'pending_trade_index', -1) == i else (150, 150, 150)
+                    self.virtual_surface.blit(self.small_font.render(f"{chr(97+i)}) {s_item}", True, c_color), (sx, y_curr))
+                    y_curr += 20
+            
             # --- INÍCIO: ENTIDADES NA VISÃO ---
             y_curr += 40 # Dá um espaço após os textos de ajuda
             
@@ -2694,9 +2789,6 @@ class Game:
                         self.set_state("PLAYING")
                         self.message_log = []
                         self.log_scroll = 0
-                        self.add_log(self.t("log_intro1"))
-                        self.add_log(self.t("log_intro2"))
-                        self.add_log(self.t("log_intro3"))
                         self.reset_game_stats() # Inicializa as estatísticas ao carregar o jogo
                     elif event.key in (pygame.K_c, pygame.K_l): 
                         self.origin_state = "START" 
@@ -2722,9 +2814,6 @@ class Game:
                         self.worlds = {}
                         self.has_the_book = False
                         self.player_faith = 0
-                        self.add_log(self.t("log_intro1"))
-                        self.add_log(self.t("log_intro2"))
-                        self.add_log(self.t("log_intro3"))
                     continue
                 
                 if self.state in ("MENU", "MENU_SAVE", "MENU_LOAD"):
@@ -2783,10 +2872,44 @@ class Game:
                     
                     #if event.key == pygame.K_f:
                         #self.player_faith = 100
+                    # --- CONTROLE DA LOJA ---
+                    if pygame.K_a <= event.key <= pygame.K_e and getattr(self, 'shop_active', False):
+                        idx = event.key - pygame.K_a
+                        self.pending_trade_index = idx
+                        self.add_log(self.t("log_shop_sel", chr(97+idx), self.shop_inventory[idx]))
+                        continue
+
+                    # --- CONTROLE DE ITENS (E TROCA NA LOJA) ---
                     if pygame.K_1 <= event.key <= pygame.K_9:
                         idx = event.key - pygame.K_1
                         keys = pygame.key.get_pressed()
                         
+                        # Se estiver fazendo uma troca na loja
+                        if getattr(self, 'shop_active', False) and getattr(self, 'pending_trade_index', -1) != -1:
+                            if idx < len(self.inventory):
+                                p_item = self.inventory[idx]
+                                s_item = self.shop_inventory[self.pending_trade_index]
+                                
+                                # Efetua a troca
+                                self.inventory[idx] = s_item
+                                self.shop_inventory[self.pending_trade_index] = p_item
+                                self.shop_trades_left -= 1
+                                self.pending_trade_index = -1
+                                
+                                self.add_log(self.t("log_shop_swap", p_item, s_item))
+                                play_beep(800, 0.1)
+                            
+                                if self.shop_trades_left <= 0:
+                                    self.shop_visited = True
+                                    self.shop_active = False
+                                    self.add_log(self.t("log_shop_closed"))
+                                else:
+                                    # Mostra a loja atualizada
+                                    shop_str = ", ".join([f"{chr(97+i)}) {item}" for i, item in enumerate(self.shop_inventory)])
+                                    self.add_log(shop_str)
+                            continue
+                        
+                        # Lógica original para USAR o item
                         if keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]:
                             if idx < len(self.inventory):
                                 item_name = self.inventory[idx]
