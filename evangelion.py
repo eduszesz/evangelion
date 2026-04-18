@@ -1477,7 +1477,7 @@ class Game:
                 if random.random() < (conf["chance_base"] + self.level * conf["escala_nivel"]): 
                     self.drones.append(Drone(cx, cy))
 
-            if self.level >= 1:# and self.level % 2 == 0: #normal será level 6
+            if self.level >= 6 and self.level % 2 == 0: #normal será level 6
                 if len(self.engs) == 0:
                     for _ in range(50): # Tenta achar um lugar livre
                         rx, ry = random.randint(1, MAP_WIDTH-2), random.randint(1, MAP_HEIGHT-2)
@@ -2781,8 +2781,8 @@ class Game:
                 
                 if self.state == "PLAYING":
                     
-                    if event.key == pygame.K_f:
-                        self.player_faith = 100
+                    #if event.key == pygame.K_f:
+                        #self.player_faith = 100
                     if pygame.K_1 <= event.key <= pygame.K_9:
                         idx = event.key - pygame.K_1
                         keys = pygame.key.get_pressed()
