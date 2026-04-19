@@ -1610,8 +1610,8 @@ class Game:
                     self.tiles.append(Tiles_Panel(px, py))
                     self.panel_x, self.panel_y = px, py
         
-        # --- Geração da Loja (Níveis 6 e 12 com 75% de chance) ---
-        if self.level == 1: # in (6, 12) and random.random() < 0.75: # normal será 6 e 12
+        # --- Geração da Loja (Níveis 6, 8 e 12 com 70% de chance) ---
+        if self.level in (4, 8, 12) and random.random() < 0.7:
             # Pega uma sala aleatória que não seja a primeira
             self.shop_trades_left = 2 if self.level < 8 else 3
             if len(self.rooms) > 1:
