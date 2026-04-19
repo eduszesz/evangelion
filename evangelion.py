@@ -763,6 +763,21 @@ class Game:
         self.tracks = {}        
         
         self.language = "EN"
+
+        # --- NOVO: Lê a resolução do monitor ---
+        info = pygame.display.Info()
+        desktop_w = info.current_w
+        desktop_h = info.current_h
+        
+        start_w = SCREEN_WIDTH
+        start_h = SCREEN_HEIGHT
+        
+        # Se a resolução do monitor for menor que a do jogo, ajustamos o tamanho inicial
+        if start_w > desktop_w or start_h > desktop_h:
+            start_w = desktop_w
+            start_h = desktop_h - 60  # Desconta 60 pixels para não ficar escondido atrás da barra de tarefas
+        # ---------------------------------------
+        
         
         try:
             pygame.mixer.init()
@@ -793,9 +808,11 @@ class Game:
                 print(f"Erro ao carregar trilhas: {e}")
                 self.audio_enabled = False
         
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
+        # Substitua SCREEN_WIDTH e SCREEN_HEIGHT por start_w e start_h na tela física e no current_window_size.
+        # A virtual_surface continua com os valores originais para manter a proporção do seu mapa.
+        self.screen = pygame.display.set_mode((start_w, start_h), pygame.RESIZABLE)
         self.virtual_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        self.current_window_size = (SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.current_window_size = (start_w, start_h)
         
         try:
             self.icon_path = self.resource_path("icon-at.png")
@@ -2133,15 +2150,30 @@ class Game:
                         self.inventory.append(random.choice(["EMP", "KIT", "INV", "HACK", "DECOY"]))
                         self.stats_items_collected += 1
                 else:
-                    dist = math.hypot(a.x - self.player_x, a.y - self.player_y)
-                    if dist > 1.5:  # Não pisa exatamente em cima do jogador
-                        path = self.get_path_to_target(a.x, a.y, self.player_x, self.player_y)
+                    # Descobre a sala atual do aliado e a sala da escada
+                    room_ally = self.get_room_at(a.x, a.y)
+                    room_stairs = self.get_room_at(self.stairs_up_x, self.stairs_up_y)
+
+                    # Popula as tiles ocupadas para evitar atropelamentos
+                    occ = [(e.x, e.y) for e in self.guards + self.dogs + self.drones + self.cameras + self.engs]
+                    occ.append((self.player_x, self.player_y))
+
+                    # Se estiverem na mesma sala (e a sala não for nula), o aliado corre direto para a escada
+                    if room_ally and room_ally == room_stairs:
+                        path = self.get_path_to_target(a.x, a.y, self.stairs_up_x, self.stairs_up_y)
                         if path:
                             nx, ny = path[0]
-                            occ = [(e.x, e.y) for e in self.guards + self.dogs + self.drones + self.cameras + self.engs]
-                            occ.append((self.player_x, self.player_y))
                             if (nx, ny) not in occ:
                                 a.x, a.y = nx, ny
+                    else:
+                        # Comportamento padrão: segue o jogador se estiver longe
+                        dist = math.hypot(a.x - self.player_x, a.y - self.player_y)
+                        if dist > 1.5:  # Não pisa exatamente em cima do jogador
+                            path = self.get_path_to_target(a.x, a.y, self.player_x, self.player_y)
+                            if path:
+                                nx, ny = path[0]
+                                if (nx, ny) not in occ:
+                                    a.x, a.y = nx, ny
                                 
         for c in self.cameras: c.update(self.map_data,self.dark_turns > 0)
 
