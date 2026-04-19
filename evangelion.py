@@ -5,6 +5,7 @@ import array
 import sys
 import os
 import json
+#test git
 
 # --- Configurações Gerais ---
 SCREEN_WIDTH, SCREEN_HEIGHT = 1500, 980
