@@ -876,7 +876,10 @@ class Game:
             "n_guards": self.number_guards,
             "decoys": self.decoys,
             "shop_visited": self.shop_visited,
-            "shop_trades_left": self.shop_trades_left
+            "shop_trades_left": self.shop_trades_left,
+            "shop_inventory": getattr(self, 'shop_inventory', []),
+            "shop_active": getattr(self, 'shop_active', False)
+            
         }
 
     def load_level(self, level_num):
@@ -905,6 +908,9 @@ class Game:
         self.generate_more_enemies()
         self.shop_visited = data.get("shop_visited")
         self.shop_trades_left = data.get("shop_trades_left",0)
+        self.shop_inventory = data.get("shop_inventory", [])
+        self.shop_active = data.get("shop_active", False)
+        self.pending_trade_index = -1
     
     def find_path(self, start_x, start_y, goal_x, goal_y):
         open_list = [(0, start_x, start_y)]
@@ -1023,7 +1029,9 @@ class Game:
                 "faith": data.get("faith", 0),
                 "n_guards": data.get("n_guards",0),
                 "shop_visited": data.get("shop_visited"),
-                "shop_trades_left": data.get("shop_trades_left",0)
+                "shop_trades_left": data.get("shop_trades_left",0),
+                "shop_inventory": data.get("shop_inventory", []),
+                "shop_active": data.get("shop_active", False)
             }
             
         data_to_save = {
@@ -1041,6 +1049,8 @@ class Game:
             "faith": self.player_faith,
             "shop_visited": self.shop_visited,
             "shop_trades_left": self.shop_trades_left,
+            "shop_inventory": getattr(self, 'shop_inventory', []),
+            "shop_active": getattr(self, 'shop_active', False),
             "worlds": serialized_worlds,
             "total_turns": self.total_turns,
             "accumulated_time": self.accumulated_time + (pygame.time.get_ticks() - self.game_start_time if self.state == "PLAYING" else 0),
@@ -1093,6 +1103,9 @@ class Game:
             self.caught_by_name = data.get("caught_by_name", "npc_Unknown")
             self.shop_visited = data.get("shop_visited", False)
             self.shop_trades_left = data.get("shop_trades_left",0)
+            self.shop_inventory = data.get("shop_inventory", [])
+            self.shop_active = data.get("shop_active", False)
+            self.pending_trade_index = -1
             
             self.worlds = {}
             for lvl_str, lvl_data in data["worlds"].items():
@@ -1202,6 +1215,10 @@ class Game:
                     "dark": lvl_data.get("dark", 0),
                     "n_guards": lvl_data.get("n_guards",0),
                     "decoys": decoys,
+                    "shop_visited": lvl_data.get("shop_visited"),
+                    "shop_trades_left": lvl_data.get("shop_trades_left",0),
+                    "shop_inventory": lvl_data.get("shop_inventory", []),
+                    "shop_active": lvl_data.get("shop_active", False)
                     
                 }
 
@@ -1592,8 +1609,9 @@ class Game:
                     self.map_data[py][px] = TILE_PANEL
                     self.tiles.append(Tiles_Panel(px, py))
                     self.panel_x, self.panel_y = px, py
+        
         # --- Geração da Loja (Níveis 6 e 12 com 75% de chance) ---
-        if self.level ==1: #in (6, 12) and random.random() < 0.75: #normal será 6 e 12
+        if self.level == 1: # in (6, 12) and random.random() < 0.75: # normal será 6 e 12
             # Pega uma sala aleatória que não seja a primeira
             self.shop_trades_left = 2 if self.level < 8 else 3
             if len(self.rooms) > 1:
@@ -1602,10 +1620,23 @@ class Game:
                 for y in range(shop_room.y1 + 1, shop_room.y2):
                     for x in range(shop_room.x1 + 1, shop_room.x2):
                         if self.map_data[y][x] == TILE_FLOOR:
-                            valid_spots.append((x, y))
+                            # Checa se está longe de corredores (zona de segurança 3x3)
+                            longe_de_corredor = True
+                            for dy in [-1, 0, 1]:
+                                for dx in [-1, 0, 1]:
+                                    if (x + dx, y + dy) in self.corridor_tiles:
+                                        longe_de_corredor = False
+                                        break
+                                if not longe_de_corredor:
+                                    break
+                            
+                            if longe_de_corredor:
+                                valid_spots.append((x, y))
+                                
                 if valid_spots:
                     px, py = random.choice(valid_spots)
                     self.map_data[py][px] = TILE_SHOP
+                    self.tiles.append(Tiles_Shop(px, py)) # Mantendo a correção feita anteriormente para o HUD
         
         self.update_player_fov()
 
