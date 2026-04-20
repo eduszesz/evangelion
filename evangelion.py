@@ -501,7 +501,7 @@ class Ally(Entity):
 class Decoy(Entity):
     def __init__(self, x, y):
         super().__init__(x, y)
-        self.timer = 7
+        self.timer = 9
         self.active = False
 
 class Eng(Entity):
@@ -1911,24 +1911,33 @@ class Game:
                         play_beep(200, 0.1)
                         self.player_x, self.player_y = nx, ny
                     else:
-                        enemy = next((e for e in self.guards + self.drones + self.dogs + self.engs if e.x == nx and e.y == ny), None)
-                        if enemy and enemy.stun_timer == 0:
-                            if hasattr(enemy, "hacked") and enemy.hacked:
-                                # Troca as posições para não haver bloqueio em corredores estreitos
-                                enemy.x, enemy.y = self.player_x, self.player_y
-                                self.player_x, self.player_y = nx, ny
-                            else:    
-                                can_stun = isinstance(enemy, (Dog, Eng)) or \
-                                (dx != 0 and dx == getattr(enemy, 'dir_x', 0)) or \
-                                (dy != 0 and dy == getattr(enemy, 'dir_y', 0))
-
-                                if can_stun:
-                                    enemy.stun_timer = 25; play_beep(150, 0.2); self.add_log(self.t("log_emp"))
-                                    self.stats_npcs_stunned += 1
-                                else: 
-                                    self.trigger_caught(); return
-                        else:
+                        # --- NOVO: Verifica se há um aliado livre na posição ---
+                        ally = next((a for a in self.allies if a.x == nx and a.y == ny and a.is_free), None)
+                        
+                        if ally:
+                            # Troca de posição com o aliado
+                            ally.x, ally.y = self.player_x, self.player_y
                             self.player_x, self.player_y = nx, ny
+                        else:
+                            # Lógica original de colisão com inimigos
+                            enemy = next((e for e in self.guards + self.drones + self.dogs + self.engs if e.x == nx and e.y == ny), None)
+                            if enemy and enemy.stun_timer == 0:
+                                if hasattr(enemy, "hacked") and enemy.hacked:
+                                    # Troca as posições para não haver bloqueio em corredores estreitos
+                                    enemy.x, enemy.y = self.player_x, self.player_y
+                                    self.player_x, self.player_y = nx, ny
+                                else:    
+                                    can_stun = isinstance(enemy, (Dog, Eng)) or \
+                                    (dx != 0 and dx == getattr(enemy, 'dir_x', 0)) or \
+                                    (dy != 0 and dy == getattr(enemy, 'dir_y', 0))
+
+                                    if can_stun:
+                                        enemy.stun_timer = 25; play_beep(150, 0.2); self.add_log(self.t("log_emp"))
+                                        self.stats_npcs_stunned += 1
+                                    else: 
+                                        self.trigger_caught(); return
+                            else:
+                                self.player_x, self.player_y = nx, ny
 
 
                             
@@ -2476,7 +2485,15 @@ class Game:
                     else:
                         # Decoy inativo (cinza) com contagem regressiva
                         self.virtual_surface.blit(self.font.render(TILE_DECOY, True, (100, 100, 100)), (d.x*TILE_WIDTH, d.y*TILE_HEIGHT))
-                        self.draw_text_on_map(str(d.timer), d.x, d.y, (200, 200, 200), offset_y=-1)
+                        
+                        # --- NOVO: A contagem "foge" do jogador ---
+                        texto_offset_y = -1 # Posição padrão (acima do decoy)
+                        
+                        # Se o jogador estiver na exata casa onde o texto seria desenhado (acima)
+                        if self.player_x == d.x and self.player_y == d.y - 1:
+                            texto_offset_y = 1 # Empurra o texto para debaixo do decoy
+                            
+                        self.draw_text_on_map(str(d.timer), d.x, d.y, (200, 200, 200), offset_y=texto_offset_y)
             
             
             
