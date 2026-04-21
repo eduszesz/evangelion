@@ -220,6 +220,13 @@ TEXTS = {
         "npc_Tiles_Panel": "Power panel",
         "npc_Tiles_Panel_plural": "Power panels: {}",
         "npc_Tiles_Shop": "Shop",
+        "help_title": "--- HELP ---",
+        "help_move": "[ARROW KEYS]: Movement",
+        "help_wait": "[SPACE]: Skip Turn",
+        "help_items": "[1 a 9]: Use Itens",
+        "help_close": "[H] ou [ESC]: Close Help",
+        "help_tip": "TIP: Side or rear strikes stun the guards.",
+        "help_pray": "[P]: Convert guards and enginners"
     },
     "PT": {
         "sub_title": "Um Jogo Roguelike Furtivo",
@@ -368,12 +375,71 @@ TEXTS = {
         "npc_Tiles_Panel": "Painel elétrico",
         "npc_Tiles_Panel_plural": "Paineis elétrico: {}",
         "npc_Tiles_Shop": "Loja",
+        "help_title": "--- HELP ---",
+        "help_move": "[SETAS]: Movimentação",
+        "help_wait": "[ESPAÇO]: Passar Turno",
+        "help_items": "[1 a 9]: Usar Itens",
+        "help_close": "[H] ou [ESC]: Fechar Help",
+        "help_tip": "DICA: Atordoe guardas batendo pelos lados ou por trás.",
+        "help_pray": "[P]: Converte guardas e engenheiros",
         
     }
 }
 
 # --- Base de Dados de Mensagens ---
 MENSAGENS_DB = {
+    1: {
+        "PT": {"texto": "Como está escrito: “Não há nenhum justo, nem um sequer...”", "ref": "1"},
+        "EN": {"texto": "As it is written: “There is no one righteous, not even one...”", "ref": "1"}
+    },
+    2: {
+        "PT": {"texto": "pois todos pecaram e estão destituídos da glória de Deus", "ref": "2"},
+        "EN": {"texto": "for all have sinned and fall short of the glory of God", "ref": "2"}
+    },
+    3: {
+        "PT": {"texto": "Ninguém pode ver o Reino de Deus, se não nascer de novo", "ref": "3"},
+        "EN": {"texto": "No one can see the kingdom of God unless they are born again.", "ref": "3"}
+    },
+    4: {
+        "PT": {"texto": "Se você confessar que Jesus é Senhor e crer que Deus o ressuscitou, será salvo.", "ref": "4"},
+        "EN": {"texto": "If you declare, “Jesus is Lord,” and believe that God raised him, you will be saved.", "ref": "4"}
+    },
+    5: {
+        "PT": {"texto": "Tendo sido, pois, justificados pela fé, temos paz com Deus...", "ref": "5"},
+        "EN": {"texto": "We have been justified through faith, we have peace with God...", "ref": "5"}
+    },
+    6: {
+        "PT": {"texto": "Pois vocês são salvos pela graça, por meio da fé...", "ref": "6"},
+        "EN": {"texto": "For it is by grace you have been saved, through faith...", "ref": "6"}
+    },
+    7: {
+        "PT": {"texto": "Vejam como é grande o amor que o Pai nos concedeu: somos filhos de Deus!", "ref": "7"},
+        "EN": {"texto": "See what great love the Father has lavished on us, that we are called children of God!", "ref": "7"}
+    },
+    8: {
+        "PT": {"texto": "Portanto, sejam imitadores de Deus, como filhos amados...", "ref": "8"},
+        "EN": {"texto": "Follow God’s example, and walk in the way of love...", "ref": "8"}
+    },
+    9: {
+        "PT": {"texto": "Vocês, porém, são geração eleita, sacerdócio real, nação santa, povo de Deus...", "ref": "9"},
+        "EN": {"texto": "But you are a chosen people, a royal priesthood, a holy nation, God’s possession...", "ref": "9"}
+    },
+    10: {
+        "PT": {"texto": "Não se amoldem ao mundo, mas transformem-se pela renovação da sua mente...", "ref": "10"},
+        "EN": {"texto": "Do not conform to this world, but be transformed by the renewing of your mind...", "ref": "10"}
+    },
+    11: {
+        "PT": {"texto": "Mas em todas estas coisas somos mais que vencedores, por meio daquele que nos amou.", "ref": "11"},
+        "EN": {"texto": "No, in all these things we are more than conquerors through him who loved us.", "ref": "11"}
+    },
+    12: {
+        "PT": {"texto": "Portanto, vão e façam discípulos de todas as nações. E eu estarei sempre com vocês...", "ref": "12"},
+        "EN": {"texto": "Therefore go and make disciples of all nations. And surely I am with you always...", "ref": "12"}
+    }
+}
+
+# --- Base de Dados de Mensagens ---
+MENSAGENS_DB_BACKUP = {
     1: {
         "PT": {"texto": "Como está escrito: “Não há nenhum justo, nem um sequer...”", "ref": "Rm 3:10"},
         "EN": {"texto": "As it is written: “There is no one righteous, not even one...”", "ref": "Rom 3:10"}
@@ -764,6 +830,8 @@ class Game:
         
         self.language = "EN"
 
+        self.show_help = False
+
         # --- NOVO: Lê a resolução do monitor ---
         info = pygame.display.Info()
         desktop_w = info.current_w
@@ -869,6 +937,54 @@ class Game:
             return text.format(*args)
         return text
 
+    
+    def draw_help(self):
+        # Pega o tamanho real da janela agora
+        sw, sh = self.screen.get_size()
+        
+        # 1. Overlay semi-transparente (ajusta ao tamanho da tela)
+        overlay = pygame.Surface((sw, sh), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 200)) 
+        self.screen.blit(overlay, (0, 0))
+    
+        # 2. Janela de Help (Tamanho fixo ou proporcional)
+        w, h = 770, 450
+        # Centraliza o retângulo: a posição (x,y) é o centro da tela menos metade da largura/altura do help
+        x = (sw - w) // 2
+        y = (sh - h) // 2
+    
+        # Desenha o fundo da caixa de help
+        pygame.draw.rect(self.screen, (25, 25, 35), (x, y, w, h))
+        pygame.draw.rect(self.screen, COLOR_PLAYER, (x, y, w, h), 3) # Borda com a cor do Eva
+    
+        # 3. Conteúdo usando o dicionário de tradução self.t()
+        # Estrutura: (chave_do_dicionario, cor)
+        help_content = [
+            ("help_title", COLOR_PLAYER),
+            ("", None), # Espaço
+            ("help_move", (255, 255, 255)),
+            ("help_wait", (255, 255, 255)),
+            ("help_items", (255, 255, 255)),
+            ("help_close", (255, 255, 255)),
+            ("help_pray", (255, 255, 255)),
+            ("", None),
+            ("help_tip", (180, 180, 180))
+        ]
+    
+        for i, (key, color) in enumerate(help_content):
+            if key == "": continue
+            
+            text_str = self.t(key)
+            text_surf = self.font.render(text_str, True, color)
+            
+            # Centraliza o texto horizontalmente em relação à LARGURA DA TELA
+            text_x = (sw - text_surf.get_width()) // 2
+            # Posiciona verticalmente a partir do topo da janela de help
+            text_y = y + 50 + (i * 40)
+            
+            self.screen.blit(text_surf, (text_x, text_y))
+    
+    
     def save_current_level(self):
         self.worlds[self.level] = {
             "map_data": self.map_data,
@@ -1628,10 +1744,13 @@ class Game:
                     self.tiles.append(Tiles_Panel(px, py))
                     self.panel_x, self.panel_y = px, py
         
-        # --- Geração da Loja (Níveis 6, 8 e 12 com 70% de chance) ---
+        # --- Geração da Loja (Níveis 4, 8 e 12 com 70% de chance) ---
+        #if self.level == 1: #debug shop
         if self.level in (4, 8, 12) and random.random() < 0.7:
             # Pega uma sala aleatória que não seja a primeira
             self.shop_trades_left = 2 if self.level < 8 else 3
+            items_pool = ["EMP", "KIT", "INV", "HACK", "DECOY"]
+            self.shop_inventory = [random.choice(items_pool) for _ in range(5)]
             if len(self.rooms) > 1:
                 shop_room = random.choice(self.rooms[1:])
                 valid_spots = []
@@ -1863,8 +1982,7 @@ class Game:
                         
                         self.shop_active = True
                         #self.shop_trades_left = 2 if self.level < 8 else 3
-                        items_pool = ["EMP", "KIT", "INV", "HACK", "DECOY"]
-                        self.shop_inventory = [random.choice(items_pool) for _ in range(5)]
+                        
                         self.pending_trade_index = -1
                         
                         self.add_log(self.t("log_shop_enter"))
@@ -1927,9 +2045,13 @@ class Game:
                                     enemy.x, enemy.y = self.player_x, self.player_y
                                     self.player_x, self.player_y = nx, ny
                                 else:    
-                                    can_stun = isinstance(enemy, (Dog, Eng)) or \
-                                    (dx != 0 and dx == getattr(enemy, 'dir_x', 0)) or \
-                                    (dy != 0 and dy == getattr(enemy, 'dir_y', 0))
+                                    # Descobre se a direção do jogador é exatamente o inverso da visão do inimigo
+                                    is_head_on = (dx != 0 and dx == -getattr(enemy, 'dir_x', 0)) or \
+                                                 (dy != 0 and dy == -getattr(enemy, 'dir_y', 0))
+                                    
+                                    # Pode atordoar Cães e Engenheiros sempre, ou qualquer outro se NÃO for de frente
+                                    can_stun = isinstance(enemy, (Dog, Eng)) or not is_head_on
+                                   
 
                                     if can_stun:
                                         enemy.stun_timer = 25; play_beep(150, 0.2); self.add_log(self.t("log_emp"))
@@ -2789,6 +2911,8 @@ class Game:
         scaled_surface = pygame.transform.scale(self.virtual_surface, window_size)
         self.screen.fill((0, 0, 0))
         self.screen.blit(scaled_surface, (0, 0))
+        if self.show_help:
+            self.draw_help()
         pygame.display.flip()
 
     def run(self):
@@ -2848,8 +2972,14 @@ class Game:
                 
                 if event.type != pygame.KEYDOWN:
                     continue
-
+                if event.key == pygame.K_h and self.state != "GAMEOVER":
+                    self.show_help = not self.show_help  # Toggle (abre/fecha)
+                    continue # Impede que o 'h' faça outra coisa
+                
                 if event.key == pygame.K_ESCAPE:
+                    if self.show_help:
+                        self.show_help = False
+                        continue
                     if self.state == "PLAYING":
                         self.set_state("MENU")
                     elif self.state == "MENU":
@@ -3000,7 +3130,9 @@ class Game:
                             self.use_item(idx)
                             self.popup_timer = 0 
                         continue
-
+                    
+                    if self.show_help: continue
+                    
                     if event.key == pygame.K_SPACE:
                         self.move_entities(0, 0)
                         continue
