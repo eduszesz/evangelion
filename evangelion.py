@@ -226,7 +226,13 @@ TEXTS = {
         "help_items": "[1 a 9]: Use Itens",
         "help_close": "[H] ou [ESC]: Close Help",
         "help_tip": "TIP: Side or rear strikes stun the guards.",
-        "help_pray": "[P]: Convert guards and enginners"
+        "help_pray": "[P]: Convert guards and enginners",
+        "start_help": "(H) HELP",
+        "opt_help": "(H) Help",
+        "help_mouse": "[MOUSE CLICK]: Auto-move to explored area",
+        "help_obj": "OBJECTIVE: Hack Terminal, find the message, get the Book at Lv 12",
+        "help_interact": "INTERACT: Move into Terminals, Shops, and Panels",
+        "help_panel": "PANELS: Hit 3 times to cut power",
     },
     "PT": {
         "sub_title": "Um Jogo Roguelike Furtivo",
@@ -382,6 +388,12 @@ TEXTS = {
         "help_close": "[H] ou [ESC]: Fechar Help",
         "help_tip": "DICA: Atordoe guardas batendo pelos lados ou por trás.",
         "help_pray": "[P]: Converte guardas e engenheiros",
+        "start_help": "(H) AJUDA",
+        "opt_help": "(H) Ajuda",
+        "help_mouse": "[CLIQUE DO MOUSE]: Mover automaticamente",
+        "help_obj": "OBJETIVO: Hackear Terminal, achar a mensagem, pegar O Livro no Nv 12",
+        "help_interact": "INTERAÇÃO: Ande na direção de Terminais, Lojas e Painéis",
+        "help_panel": "PAINÉIS: Bata 3 vezes para cortar a energia",
         
     }
 }
@@ -939,50 +951,54 @@ class Game:
 
     
     def draw_help(self):
-        # Pega o tamanho real da janela agora
         sw, sh = self.screen.get_size()
         
-        # 1. Overlay semi-transparente (ajusta ao tamanho da tela)
+        # Overlay semi-transparente um pouco mais escuro para melhorar a leitura
         overlay = pygame.Surface((sw, sh), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 200)) 
+        overlay.fill((0, 0, 0, 220)) 
         self.screen.blit(overlay, (0, 0))
     
-        # 2. Janela de Help (Tamanho fixo ou proporcional)
-        w, h = 770, 450
-        # Centraliza o retângulo: a posição (x,y) é o centro da tela menos metade da largura/altura do help
+        w, h = 820, 500
         x = (sw - w) // 2
         y = (sh - h) // 2
     
-        # Desenha o fundo da caixa de help
         pygame.draw.rect(self.screen, (25, 25, 35), (x, y, w, h))
-        pygame.draw.rect(self.screen, COLOR_PLAYER, (x, y, w, h), 3) # Borda com a cor do Eva
+        pygame.draw.rect(self.screen, COLOR_PLAYER, (x, y, w, h), 3)
     
-        # 3. Conteúdo usando o dicionário de tradução self.t()
-        # Estrutura: (chave_do_dicionario, cor)
+        # Estrutura: (chave_do_dicionario, cor, usar_fonte_grande)
         help_content = [
-            ("help_title", COLOR_PLAYER),
-            ("", None), # Espaço
-            ("help_move", (255, 255, 255)),
-            ("help_wait", (255, 255, 255)),
-            ("help_items", (255, 255, 255)),
-            ("help_close", (255, 255, 255)),
-            ("help_pray", (255, 255, 255)),
-            ("", None),
-            ("help_tip", (180, 180, 180))
+            ("help_title", COLOR_PLAYER, True),
+            ("", None, False),
+            ("help_obj", (255, 255, 100), False),
+            ("", None, False),
+            ("help_move", (255, 255, 255), False),
+            ("help_mouse", (255, 255, 255), False),
+            ("help_wait", (255, 255, 255), False),
+            ("help_items", (255, 255, 255), False),
+            ("help_info", (255, 255, 255), False),
+            ("help_pray", (255, 255, 255), False),
+            ("help_interact", (255, 255, 255), False),
+            ("help_panel", (255, 255, 255), False),
+            ("", None, False),
+            ("help_tip", (180, 180, 180), False),
+            ("", None, False),
+            ("help_close", (100, 255, 100), False)
         ]
     
-        for i, (key, color) in enumerate(help_content):
-            if key == "": continue
+        current_y = y + 30
+        for key, color, is_title in help_content:
+            if key == "": 
+                current_y += 15 # Espaço entre blocos
+                continue
             
             text_str = self.t(key)
-            text_surf = self.font.render(text_str, True, color)
+            font_to_use = self.font if is_title else self.small_font
+            text_surf = font_to_use.render(text_str, True, color)
             
-            # Centraliza o texto horizontalmente em relação à LARGURA DA TELA
             text_x = (sw - text_surf.get_width()) // 2
-            # Posiciona verticalmente a partir do topo da janela de help
-            text_y = y + 50 + (i * 40)
+            self.screen.blit(text_surf, (text_x, current_y))
             
-            self.screen.blit(text_surf, (text_x, text_y))
+            current_y += font_to_use.get_height() + 10
     
     
     def save_current_level(self):
@@ -2440,6 +2456,7 @@ class Game:
                 self.t("start_load"),
                 self.t("start_music", music_txt),
                 self.t("start_lang"),
+                self.t("start_help"),
                 self.t("start_quit")
             ]
             
@@ -2867,6 +2884,7 @@ class Game:
                     self.t("opt_save"),
                     self.t("opt_load"),
                     self.t("opt_lang"),
+                    self.t("opt_help"),
                     self.t("opt_resume"),
                     self.t("opt_quit")
                 ]
