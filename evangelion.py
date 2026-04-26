@@ -2374,7 +2374,7 @@ class Game:
                                 
                             body_timer += 1
                             
-                            if body_timer >= 3: # Se olhou por 3 turnos, soa o alarme
+                            if body_timer >= 5: # Se olhou por 5 turnos, soa o alarme
                                 self.alarm_timer = max(self.alarm_timer, heat)
                                 self.add_log(self.t("log_alarm"))
                                 self.player_heat += 1
