@@ -233,6 +233,7 @@ TEXTS = {
         "help_obj": "OBJECTIVE: Hack Terminal, find the message, get the Book at Lv 12",
         "help_interact": "INTERACT: Move into Terminals, Shops, and Panels",
         "help_panel": "PANELS: Hit 3 times to cut power",
+        "log_body_seen": "ALERT: UNCONSCIOUS PERSONNEL SPOTTED!",
     },
     "PT": {
         "sub_title": "Um Jogo Roguelike Furtivo",
@@ -394,6 +395,7 @@ TEXTS = {
         "help_obj": "OBJETIVO: Hackear Terminal, achar a mensagem, pegar O Livro no Nv 12",
         "help_interact": "INTERAÇÃO: Ande na direção de Terminais, Lojas e Painéis",
         "help_panel": "PAINÉIS: Bata 3 vezes para cortar a energia",
+        "log_body_seen": "ALERTA: PESSOA INCONSCIENTE - SUSPEITA DE INTRUSO!",
         
     }
 }
@@ -1833,6 +1835,7 @@ class Game:
                         else:
                             self.active_waves.append({"x": self.player_x, "y": self.player_y, "r": 0, "max_r": 8, "color": (0, 255, 255)})
                             e.stun_timer = 25
+                            self.player_heat +=1
                             self.stats_npcs_stunned += 1
                             self.add_log(self.t("log_emp"))
             elif item == "KIT": 
@@ -2072,6 +2075,7 @@ class Game:
                                     if can_stun:
                                         enemy.stun_timer = 25; play_beep(150, 0.2); self.add_log(self.t("log_emp"))
                                         self.stats_npcs_stunned += 1
+                                        self.player_heat +=1
                                     else: 
                                         self.trigger_caught(); return
                             else:
@@ -2349,6 +2353,38 @@ class Game:
             if hasattr(e, "hacked") and e.hacked:
                 pass
             else:
+                # --- INÍCIO DA NOVA LÓGICA: CORPOS ATORDOADOS (3 TURNOS) ---
+                if isinstance(e, (Guard, Eng)) and e.stun_timer == 0:
+                    if self.alarm_timer <= 0:
+                        saw_body = False
+                        for npc_aliado in self.guards + getattr(self, 'engs', []):
+                            if npc_aliado != e and npc_aliado.stun_timer > 0:
+                                if (npc_aliado.x, npc_aliado.y) in e.vision_tiles:
+                                    saw_body = True
+                                    break
+                        
+                        # Usamos getattr para criar a variável dinamicamente e evitar erro 
+                        body_timer = getattr(e, 'body_timer', 0)
+                        
+                        if saw_body:
+                            if body_timer == 0:
+                                # Aviso no log e um beep de tensão no primeiro turno que ele vê
+                                self.add_log(self.t("log_body_seen"))
+                                play_beep(500, 0.2) 
+                                
+                            body_timer += 1
+                            
+                            if body_timer >= 3: # Se olhou por 3 turnos, soa o alarme
+                                self.alarm_timer = max(self.alarm_timer, heat)
+                                self.add_log(self.t("log_alarm"))
+                                self.player_heat += 1
+                                body_timer = 0 # Reseta após dar o alarme
+                        else:
+                            if body_timer > 0:
+                                body_timer -= 1 # Esquece aos poucos se o corpo sair da visão
+                                
+                        e.body_timer = body_timer
+                # --- FIM DA NOVA LÓGICA ---
                 if e.stun_timer == 0 and self.player_invisible <=0 and (self.player_x, self.player_y) in e.vision_tiles:
                     if isinstance(e, Camera):
                         e.focus_time += 1
