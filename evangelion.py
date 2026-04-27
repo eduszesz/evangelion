@@ -47,6 +47,7 @@ COLOR_BARS = (140, 140, 150) # Cor metálica para a prisão
 COLOR_PANEL = (200, 200, 200)
 COLOR_ENG = (200, 200, 100)
 COLOR_SHOP = (255, 215, 0) # Dourado para a loja
+COLOR_SHADOW = (40, 45, 55)
 
 # Tiles
 TILE_WALL, TILE_FLOOR = '#', '.'
@@ -66,6 +67,7 @@ TILE_CAMERA = "C"
 TILE_PANEL = "&"
 TILE_DECOY = chr(0x0394) #delta
 TILE_SHOP = '$'
+TILE_SHADOW = '_'
 
 SOUND_CACHE = {}
 LAST_BEEP_T = 0
@@ -1587,6 +1589,23 @@ class Game:
                 rooms.append(new_room)
         self.rooms = rooms
         
+        # --- NOVO: Geração de Sombras nos Cantos ---
+        for r in self.rooms:
+            if random.random() < 0.6:  # 60% de chance da sala ter sombras
+                # Coordenadas exatas dos 4 cantos internos da sala
+                corners = [
+                    (r.x1 + 1, r.y1 + 1),
+                    (r.x2 - 1, r.y1 + 1),
+                    (r.x1 + 1, r.y2 - 1),
+                    (r.x2 - 1, r.y2 - 1)
+                ]
+                for cx, cy in corners:
+                    # Expande a sombra num bloco 2x2 a partir do canto
+                    for dx in [0, 1 if cx == r.x1 + 1 else -1]:
+                        for dy in [0, 1 if cy == r.y1 + 1 else -1]:
+                            if self.map_data[cy+dy][cx+dx] == TILE_FLOOR:
+                                self.map_data[cy+dy][cx+dx] = TILE_SHADOW
+        
         self.player_x, self.player_y = rooms[0].center()
         self.stairs_up_x, self.stairs_up_y = rooms[0].center()
         self.map_data[self.stairs_up_y][self.stairs_up_x] = TILE_STAIR_UP
@@ -1701,7 +1720,7 @@ class Game:
                             if not area_livre_de_corredor:
                                 break
                         
-                        if area_livre_de_corredor and self.map_data[ly][lx] not in [TILE_BARS_1, TILE_BARS_2]: 
+                        if area_livre_de_corredor and self.map_data[ly][lx] not in [TILE_BARS_1, TILE_BARS_2, TILE_SHADOW]: 
                             self.cameras.append(Camera(lx, ly))
                             self.map_data[ly][lx] = TILE_CAMERA
                             break
@@ -2360,8 +2379,10 @@ class Game:
                         for npc_aliado in self.guards + getattr(self, 'engs', []):
                             if npc_aliado != e and npc_aliado.stun_timer > 0:
                                 if (npc_aliado.x, npc_aliado.y) in e.vision_tiles:
-                                    saw_body = True
-                                    break
+                                    # Só vê o corpo se NÃO estiver na sombra, ou se o alarme estiver soando
+                                    if self.map_data[npc_aliado.y][npc_aliado.x] != TILE_SHADOW or self.alarm_timer > 0:
+                                        saw_body = True
+                                        break
                         
                         # Usamos getattr para criar a variável dinamicamente e evitar erro 
                         body_timer = getattr(e, 'body_timer', 0)
@@ -2386,29 +2407,30 @@ class Game:
                         e.body_timer = body_timer
                 # --- FIM DA NOVA LÓGICA ---
                 if e.stun_timer == 0 and self.player_invisible <=0 and (self.player_x, self.player_y) in e.vision_tiles:
-                    if isinstance(e, Camera):
-                        e.focus_time += 1
-                        if random.random() < (0.4 if e.focus_time == 1 else 0.75 if e.focus_time == 2 else 1.0): 
-                            if self.alarm_timer <=0:
-                                self.alarm_timer = max(self.alarm_timer, heat)
-                                e.detected_player = True
-                                self.player_heat +=1
-                        else: e.lucky_escape = True 
-                    elif isinstance(e, Dog):
-                        pass 
-                    else:
-                        e.detected_player = True
-                        if hasattr(e, 'suspicion'):
-                            if not INVENSIVEL and e == closest_npc:
-                                e.suspicion += 1
-                            if e.suspicion == 4:
+                    if self.map_data[self.player_y][self.player_x] != TILE_SHADOW or self.alarm_timer > 0:
+                        if isinstance(e, Camera):
+                            e.focus_time += 1
+                            if random.random() < (0.4 if e.focus_time == 1 else 0.75 if e.focus_time == 2 else 1.0): 
                                 if self.alarm_timer <=0:
                                     self.alarm_timer = max(self.alarm_timer, heat)
-                                    self.add_log(self.t("log_alarm"))
+                                    e.detected_player = True
                                     self.player_heat +=1
-                            if e.suspicion >= 8:
-                                self.trigger_caught()
-                                self.trigger_caught(f"npc_{e.__class__.__name__}"); return
+                            else: e.lucky_escape = True 
+                        elif isinstance(e, Dog):
+                            pass 
+                        else:
+                            e.detected_player = True
+                            if hasattr(e, 'suspicion'):
+                                if not INVENSIVEL and e == closest_npc:
+                                    e.suspicion += 1
+                                if e.suspicion == 4:
+                                    if self.alarm_timer <=0:
+                                        self.alarm_timer = max(self.alarm_timer, heat)
+                                        self.add_log(self.t("log_alarm"))
+                                        self.player_heat +=1
+                                if e.suspicion >= 8:
+                                    self.trigger_caught()
+                                    self.trigger_caught(f"npc_{e.__class__.__name__}"); return
                 elif hasattr(e, 'suspicion') and e.suspicion > 0: e.suspicion -= 1
 
         if self.alarm_timer > 0: self.alarm_timer -= 1
@@ -2589,12 +2611,14 @@ class Game:
                     if self.dark_turns > 0:
                         if char == TILE_FLOOR: color = COLOR_DARK_FOG
                         elif char == TILE_WALL: color = COLOR_DARK_FOG
+                        elif char == TILE_SHADOW: color = COLOR_DARK_FOG
                         elif char in [TILE_SPIKES, TILE_SENSOR, TILE_DRUNK]: color = COLOR_DARK_FOG
                         elif char == TILE_SECRET_FLOOR: char = TILE_FLOOR; color = COLOR_DARK_FOG
                         elif char == TILE_SECRET_DOOR: char = TILE_WALL; color = COLOR_DARK_FOG
                     else:    
                     
                         if char == TILE_WALL: color = COLOR_WALL
+                        elif char == TILE_SHADOW: color = COLOR_SHADOW; char = TILE_FLOOR
                         elif char in [TILE_SPIKES, TILE_SENSOR, TILE_DRUNK]: color = COLOR_FLOOR
                         elif char == TILE_PANEL: color = COLOR_PANEL    
                         elif char == TILE_SECRET_FLOOR: char = TILE_FLOOR; color = COLOR_SECRET_FLOOR
