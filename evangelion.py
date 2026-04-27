@@ -48,6 +48,7 @@ COLOR_PANEL = (200, 200, 200)
 COLOR_ENG = (200, 200, 100)
 COLOR_SHOP = (255, 215, 0) # Dourado para a loja
 COLOR_SHADOW = (40, 45, 55)
+COLOR_DARK_WALL = (60, 65, 75)
 
 # Tiles
 TILE_WALL, TILE_FLOOR = '#', '.'
@@ -1587,24 +1588,29 @@ class Game:
                     for ty in range(min(py, cy), max(py, cy)+1):
                         if self.map_data[ty][cx] == TILE_WALL: self.map_data[ty][cx] = TILE_FLOOR; self.corridor_tiles.append((cx, ty))
                 rooms.append(new_room)
+        
         self.rooms = rooms
         
-        # --- NOVO: Geração de Sombras nos Cantos ---
+        # --- NOVO: Geração de Sombras num único canto ---
         for r in self.rooms:
-            if random.random() < 0.6:  # 60% de chance da sala ter sombras
-                # Coordenadas exatas dos 4 cantos internos da sala
+            if random.random() < 0.6:  # 60% de chance da sala ter sombra
                 corners = [
                     (r.x1 + 1, r.y1 + 1),
                     (r.x2 - 1, r.y1 + 1),
                     (r.x1 + 1, r.y2 - 1),
                     (r.x2 - 1, r.y2 - 1)
                 ]
-                for cx, cy in corners:
-                    # Expande a sombra num bloco 2x2 a partir do canto
-                    for dx in [0, 1 if cx == r.x1 + 1 else -1]:
-                        for dy in [0, 1 if cy == r.y1 + 1 else -1]:
-                            if self.map_data[cy+dy][cx+dx] == TILE_FLOOR:
-                                self.map_data[cy+dy][cx+dx] = TILE_SHADOW
+                # Escolhe apenas UM canto
+                cx, cy = random.choice(corners)
+                
+                # Determina para qual lado expandir o quadrado 2x2
+                dx_list = [0, 1] if cx == r.x1 + 1 else [0, -1]
+                dy_list = [0, 1] if cy == r.y1 + 1 else [0, -1]
+                
+                for dx in dx_list:
+                    for dy in dy_list:
+                        if self.map_data[cy+dy][cx+dx] == TILE_FLOOR:
+                            self.map_data[cy+dy][cx+dx] = TILE_SHADOW
         
         self.player_x, self.player_y = rooms[0].center()
         self.stairs_up_x, self.stairs_up_y = rooms[0].center()
@@ -2617,7 +2623,20 @@ class Game:
                         elif char == TILE_SECRET_DOOR: char = TILE_WALL; color = COLOR_DARK_FOG
                     else:    
                     
-                        if char == TILE_WALL: color = COLOR_WALL
+                        if char == TILE_WALL:
+                            color = COLOR_WALL
+                            # --- NOVO: Verifica se a parede é adjacente à sombra ---
+                            is_dark = False
+                            for wy in [-1, 0, 1]:
+                                for wx in [-1, 0, 1]:
+                                    if 0 <= x+wx < MAP_WIDTH and 0 <= y+wy < MAP_HEIGHT:
+                                        if self.map_data[y+wy][x+wx] == TILE_SHADOW:
+                                            is_dark = True
+                                            break
+                                if is_dark: break
+                            
+                            if is_dark: 
+                                color = COLOR_DARK_WALL
                         elif char == TILE_SHADOW: color = COLOR_SHADOW; char = TILE_FLOOR
                         elif char in [TILE_SPIKES, TILE_SENSOR, TILE_DRUNK]: color = COLOR_FLOOR
                         elif char == TILE_PANEL: color = COLOR_PANEL    
