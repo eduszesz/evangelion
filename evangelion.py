@@ -132,6 +132,9 @@ TEXTS = {
         "log_hack": "DEVICE HACKED!",
         "log_tun_in": "Entering a secret tunnel",
         "log_tun_out": "Leaving a secret tunnel",
+        "log_shadow_in": "Entering a dark area",
+        "log_shadow_out": "Leaving a dark area",
+        "log_shadow": "Hide stunned enemies in the shadows",
         "log_msg_req": "SYSTEM: FIND THE MESSAGE ♪ FIRST!",
         "log_alarm": "ALARM ACTIVE!",
         "log_intruder": "ALERT: INTRUDER DETECTED IN SECTOR!",
@@ -235,7 +238,7 @@ TEXTS = {
         "help_mouse": "[MOUSE CLICK]: Auto-move to explored area",
         "help_obj": "OBJECTIVE: Hack Terminal, find the message, get the Book at Lv 12",
         "help_interact": "INTERACT: Move into Terminals, Shops, and Panels",
-        "help_panel": "PANELS: Hit 3 times to cut power",
+        "help_shadow": "HIDE STUNNED ENEMIES: shift+arrow keys pull, arrow keys push",
         "log_body_seen": "ALERT: UNCONSCIOUS PERSONNEL SPOTTED!",
     },
     "PT": {
@@ -294,6 +297,9 @@ TEXTS = {
         "log_hack": "DISPOSITIVO HACKEADO!",
         "log_tun_in": "Entrando em um túnel secreto",
         "log_tun_out": "Saindo de um túnel secreto",
+        "log_shadow_in": "Entrando em uma área escura",
+        "log_shadow_out": "Saindo de uma área escura",
+        "log_shadow": "Esconda inimigos atordoados nas sombras",
         "log_msg_req": "SISTEMA: ENCONTRE A MENSAGEM ♪ PRIMEIRO!",
         "log_alarm": "ALARME ATIVO!",
         "log_intruder": "ALERTA: INTRUSO DETECTADO NO SETOR!",
@@ -397,7 +403,7 @@ TEXTS = {
         "help_mouse": "[CLIQUE DO MOUSE]: Mover automaticamente",
         "help_obj": "OBJETIVO: Hackear Terminal, achar a mensagem, pegar O Livro no Nv 12",
         "help_interact": "INTERAÇÃO: Ande na direção de Terminais, Lojas e Painéis",
-        "help_panel": "PAINÉIS: Bata 3 vezes para cortar a energia",
+        "help_shadow": "ESCONDA INIMIGOS ATORDOADOS: Shift + setas para puxar, setas para empurrar",
         "log_body_seen": "ALERTA: PESSOA INCONSCIENTE - SUSPEITA DE INTRUSO!",
         
     }
@@ -983,7 +989,7 @@ class Game:
             ("help_info", (255, 255, 255), False),
             ("help_pray", (255, 255, 255), False),
             ("help_interact", (255, 255, 255), False),
-            ("help_panel", (255, 255, 255), False),
+            ("help_shadow", (255, 255, 255), False),
             ("", None, False),
             ("help_tip", (180, 180, 180), False),
             ("", None, False),
@@ -1913,7 +1919,17 @@ class Game:
         self.move_entities(0, 0)
 
 
-    def move_entities(self, dx, dy):
+    def move_entities(self, dx, dy, pull=False):
+        old_px, old_py = self.player_x, self.player_y
+        
+        # --- NOVO: Identifica se há um inimigo atordoado atrás do jogador para ser puxado ---
+        pulled_enemy = None
+        if pull and (dx != 0 or dy != 0):
+            # A posição alvo é o sentido inverso para onde o jogador está indo
+            pull_target_x, pull_target_y = old_px - dx, old_py - dy
+            pulled_enemy = next((e for e in self.guards + self.drones + self.dogs + getattr(self, 'engs', []) 
+                                 if e.x == pull_target_x and e.y == pull_target_y and e.stun_timer > 0), None)
+        # -------------------------------------------------------------------------------------
         old_faith = self.player_faith
         nx = self.player_x + dx
         ny = self.player_y + dy
@@ -1965,6 +1981,12 @@ class Game:
                 dx, dy = 0, 0
                 #return # Gasta o turno batendo na grade
                 
+            if self.map_data[self.player_y][self.player_x] == TILE_FLOOR and self.map_data[ny][nx] == TILE_SHADOW:
+                self.add_log(self.t("log_shadow_in"))
+                play_beep(80, 0.1)
+            if self.map_data[self.player_y][self.player_x] == TILE_SHADOW and self.map_data[ny][nx] == TILE_FLOOR:
+                self.add_log(self.t("log_shadow_out"))
+                play_beep(80, 0.1)
             if self.map_data[self.player_y][self.player_x] == TILE_FLOOR and self.map_data[ny][nx] == TILE_SECRET_DOOR:
                 self.add_log(self.t("log_tun_in"))
                 play_beep(80, 0.1)
@@ -2083,26 +2105,52 @@ class Game:
                         else:
                             # Lógica original de colisão com inimigos
                             enemy = next((e for e in self.guards + self.drones + self.dogs + self.engs if e.x == nx and e.y == ny), None)
-                            if enemy and enemy.stun_timer == 0:
-                                if hasattr(enemy, "hacked") and enemy.hacked:
-                                    # Troca as posições para não haver bloqueio em corredores estreitos
-                                    enemy.x, enemy.y = self.player_x, self.player_y
-                                    self.player_x, self.player_y = nx, ny
-                                else:    
-                                    # Descobre se a direção do jogador é exatamente o inverso da visão do inimigo
-                                    is_head_on = (dx != 0 and dx == -getattr(enemy, 'dir_x', 0)) or \
-                                                 (dy != 0 and dy == -getattr(enemy, 'dir_y', 0))
+                            if enemy:
+                                if enemy.stun_timer == 0:
+                                    if hasattr(enemy, "hacked") and enemy.hacked:
+                                        # Troca as posições para não haver bloqueio em corredores estreitos
+                                        enemy.x, enemy.y = self.player_x, self.player_y
+                                        self.player_x, self.player_y = nx, ny
+                                    else:    
+                                        # Descobre se a direção do jogador é exatamente o inverso da visão do inimigo
+                                        is_head_on = (dx != 0 and dx == -getattr(enemy, 'dir_x', 0)) or \
+                                                     (dy != 0 and dy == -getattr(enemy, 'dir_y', 0))
+                                        
+                                        # Pode atordoar Cães e Engenheiros sempre, ou qualquer outro se NÃO for de frente
+                                        can_stun = isinstance(enemy, (Dog, Eng)) or not is_head_on
+                                       
+                                        if can_stun:
+                                            enemy.stun_timer = 25; play_beep(150, 0.2)
+                                            self.add_log(self.t("log_emp"))
+                                            self.add_log(self.t("log_shadow"))
+                                            self.stats_npcs_stunned += 1
+                                            self.player_heat +=1
+                                        else: 
+                                            self.trigger_caught(); return
+                                else:
+                                    # --- NOVO: LÓGICA PARA EMPURRAR INIMIGOS ATORDOADOS ---
+                                    # Calcula o tile de destino para onde o corpo será empurrado
+                                    push_x, push_y = nx + dx, ny + dy
+                                    can_push = False
                                     
-                                    # Pode atordoar Cães e Engenheiros sempre, ou qualquer outro se NÃO for de frente
-                                    can_stun = isinstance(enemy, (Dog, Eng)) or not is_head_on
-                                   
-
-                                    if can_stun:
-                                        enemy.stun_timer = 25; play_beep(150, 0.2); self.add_log(self.t("log_emp"))
-                                        self.stats_npcs_stunned += 1
-                                        self.player_heat +=1
-                                    else: 
-                                        self.trigger_caught(); return
+                                    if 0 <= push_x < MAP_WIDTH and 0 <= push_y < MAP_HEIGHT:
+                                        target_tile = self.map_data[push_y][push_x]
+                                        # O corpo não pode ser empurrado para dentro de paredes ou móveis
+                                        blocking_tiles = [TILE_WALL, TILE_SECRET_DOOR, TILE_BARS_1, TILE_BARS_2, TILE_PANEL, TILE_SHOP, TILE_CAMERA, TILE_TERMINAL]
+                                        # Também não podemos empurrá-lo em cima de outro NPC
+                                        is_occupied = any(e.x == push_x and e.y == push_y for e in self.guards + self.drones + self.dogs + self.engs + self.allies)
+                                        
+                                        if target_tile not in blocking_tiles and not is_occupied:
+                                            can_push = True
+                                            
+                                    if can_push:
+                                        enemy.x, enemy.y = push_x, push_y
+                                        self.player_x, self.player_y = nx, ny
+                                    else:
+                                        # Se houver uma parede impedindo de empurrar, o jogador apenas passa por cima
+                                        # Isso evita que o jogador fique travado em corredores estreitos
+                                        self.player_x, self.player_y = nx, ny
+                                    # ------------------------------------------------------
                             else:
                                 self.player_x, self.player_y = nx, ny
 
@@ -2226,6 +2274,12 @@ class Game:
                                         self.add_log(self.t("log_return", self.level))
                                         return                                        
 
+        # --- NOVO: LÓGICA PARA PUXAR INIMIGOS ---
+        if pulled_enemy and (self.player_x != old_px or self.player_y != old_py):
+            # Se o jogador conseguiu se mover com sucesso (não bateu na parede),
+            # trazemos o corpo atordoado para a antiga posição do jogador.
+            pulled_enemy.x, pulled_enemy.y = old_px, old_py
+        # ----------------------------------------
         is_alarm = self.alarm_timer > 0
         old_alarm = self.alarm_timer
         
@@ -2617,7 +2671,7 @@ class Game:
                     if self.dark_turns > 0:
                         if char == TILE_FLOOR: color = COLOR_DARK_FOG
                         elif char == TILE_WALL: color = COLOR_DARK_FOG
-                        elif char == TILE_SHADOW: color = COLOR_DARK_FOG
+                        elif char == TILE_SHADOW: char = TILE_FLOOR; color = COLOR_DARK_FOG
                         elif char in [TILE_SPIKES, TILE_SENSOR, TILE_DRUNK]: color = COLOR_DARK_FOG
                         elif char == TILE_SECRET_FLOOR: char = TILE_FLOOR; color = COLOR_DARK_FOG
                         elif char == TILE_SECRET_DOOR: char = TILE_WALL; color = COLOR_DARK_FOG
@@ -2638,7 +2692,11 @@ class Game:
                             if is_dark: 
                                 color = COLOR_DARK_WALL
                         elif char == TILE_SHADOW: color = COLOR_SHADOW; char = TILE_FLOOR
-                        elif char in [TILE_SPIKES, TILE_SENSOR, TILE_DRUNK]: color = COLOR_FLOOR
+                        elif char in [TILE_SPIKES, TILE_SENSOR, TILE_DRUNK]:
+                            color = COLOR_FLOOR
+                            # --- NOVO: Verifica se a armadilha está em uma zona de sombra ---
+                            is_dark = any(self.map_data[y+wy][x+wx] == TILE_SHADOW for wy in [-1, 0, 1] for wx in [-1, 0, 1] if 0 <= x+wx < MAP_WIDTH and 0 <= y+wy < MAP_HEIGHT)
+                            if is_dark: color = (color[0]//3, color[1]//3, color[2]//3)
                         elif char == TILE_PANEL: color = COLOR_PANEL    
                         elif char == TILE_SECRET_FLOOR: char = TILE_FLOOR; color = COLOR_SECRET_FLOOR
                         elif char == TILE_SECRET_DOOR: char = TILE_WALL; color = COLOR_SECRET_DOOR
@@ -2651,7 +2709,11 @@ class Game:
                                 color = COLOR_TERMINAL
                             else:
                                 color = COLOR_STAIRS_LOCKED
-                        elif char == TILE_ITEM: color = COLOR_ITEM
+                        elif char == TILE_ITEM:
+                            color = COLOR_ITEM
+                            # --- NOVO: Verifica se o item está em uma zona de sombra ---
+                            is_dark = any(self.map_data[y+wy][x+wx] == TILE_SHADOW for wy in [-1, 0, 1] for wx in [-1, 0, 1] if 0 <= x+wx < MAP_WIDTH and 0 <= y+wy < MAP_HEIGHT)
+                            if is_dark: color = (color[0]//3, color[1]//3, color[2]//3)
                         elif char == TILE_SHOP: 
                             color = COLOR_SHOP if not getattr(self, 'shop_visited', False) else (100, 100, 100)
                         elif char == TILE_MESSAGE: color = COLOR_MSG_NOTE
@@ -2699,6 +2761,10 @@ class Game:
                     if d.active:
                         # Pisca entre amarelo e laranja
                         color = (255, 255, 0) if pygame.time.get_ticks() % 500 < 250 else (255, 100, 0)
+                        # --- NOVO: Escurece o Decoy se estiver na sombra ---
+                    if self.map_data[d.y][d.x] == TILE_SHADOW:
+                        color = (color[0]//3, color[1]//3, color[2]//3)
+                    # ---------------------------------------------------
                         self.virtual_surface.blit(self.font.render(TILE_DECOY, True, color), (d.x*TILE_WIDTH, d.y*TILE_HEIGHT))
                     else:
                         # Decoy inativo (cinza) com contagem regressiva
@@ -2718,7 +2784,11 @@ class Game:
             # --- NOVO: DESENHA O ALIADO ---
             for a in self.allies:
                 if not a.escaped and self.visible[a.y][a.x]:
-                    self.virtual_surface.blit(self.font.render('a', True, COLOR_PLAYER), (a.x*TILE_WIDTH, a.y*TILE_HEIGHT))
+                    a_c = COLOR_PLAYER
+                    # --- NOVO: Escurece o Aliado se estiver na sombra ---
+                    if self.map_data[a.y][a.x] == TILE_SHADOW:
+                        a_c = (a_c[0]//3, a_c[1]//3, a_c[2]//3)
+                    self.virtual_surface.blit(self.font.render('a', True, a_c), (a.x*TILE_WIDTH, a.y*TILE_HEIGHT))
             
             for e in self.guards + self.cameras + self.drones + self.dogs + self.engs:
                 should_draw = self.visible[e.y][e.x] or e.stun_timer > 0
@@ -2741,7 +2811,10 @@ class Game:
                         color = COLOR_PLAYER if e.hacked else COLOR_ENG
                     
                     if e.stun_timer > 0: char, color = 'z', COLOR_STUNNED;
-                    
+                    # --- NOVO: Escurece o NPC se estiver na sombra ---
+                    if self.map_data[e.y][e.x] == TILE_SHADOW:
+                        color = (color[0]//3, color[1]//3, color[2]//3)
+                    # -------------------------------------------------
                     self.virtual_surface.blit(self.font.render(char, True, color), (e.x*TILE_WIDTH, e.y*TILE_HEIGHT))
                     
                     if e.stun_timer == 0:
@@ -2759,7 +2832,10 @@ class Game:
             elif self.player_drunk >0: p_c = (200, 200, 0)
             elif self.player_invisible > 0: p_c = (150, 150, 150)
             else: p_c = COLOR_PLAYER
-            
+            # --- NOVO: Escurece o jogador se estiver na sombra ---
+            if self.map_data[self.player_y][self.player_x] == TILE_SHADOW:
+                p_c = (p_c[0]//3, p_c[1]//3, p_c[2]//3)
+            # -----------------------------------------------------
             self.virtual_surface.blit(self.font.render("@", True, p_c), (self.player_x*TILE_WIDTH, self.player_y*TILE_HEIGHT))
             
             if self.player_stun > 0: self.draw_text_on_map(str(self.player_stun), self.player_x, self.player_y, (255, 50, 50))
@@ -3254,7 +3330,10 @@ class Game:
                         if event.key in self.held_dirs:
                             continue
                         self.held_dirs.add(event.key)
-
+                        # --- NOVO: Checa se o jogador está segurando SHIFT para puxar ---
+                        keys = pygame.key.get_pressed()
+                        is_pulling = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
+                        # ----------------------------------------------------------------
                         dx = dy = 0
                         
                         if self.player_drunk > 0:
@@ -3267,8 +3346,7 @@ class Game:
                         elif event.key == pygame.K_RIGHT: dx = 1*m
                         elif event.key == pygame.K_UP: dy = -1*m
                         elif event.key == pygame.K_DOWN: dy = 1*m
-
-                        self.move_entities(dx, dy)
+                        self.move_entities(dx, dy, pull=is_pulling) # Passa o parâmetro de puxão
             
             if self.state == "CAUGHT":
                 now = pygame.time.get_ticks()
