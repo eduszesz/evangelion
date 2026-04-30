@@ -240,6 +240,28 @@ TEXTS = {
         "help_interact": "INTERACT: Move into Terminals, Shops, and Panels",
         "help_shadow": "HIDE STUNNED ENEMIES: shift+arrow keys pull, arrow keys push",
         "log_body_seen": "ALERT: UNCONSCIOUS PERSONNEL SPOTTED!",
+        "achiv_stun": "Stunned!",
+        "achiv_stun_text": "You stunned an enemy for the first time",
+        "achiv_treasure": "Treasure hunter",
+        "achiv_treasure_text": "You collected 10 itens",
+        "achiv_steps": "Look at where you step!",
+        "achiv_steps_test": "You make to level 12 without stepping in any trap",
+        "achiv_break": "Taking a break",
+        "achiv_break_text": "Staying in secret passages for more than 300 turns",
+        "achiv_sender": "The sender",
+        "achiv_sender_text": "You sent your first message",
+        "achiv_librarian": "Librarian",
+        "achiv_librarian_text": "You took the book!",
+        "achiv_pacifist": "Pacifist",
+        "achiv_pacifist_test": "You make to level 12 without stun any enemy",
+        "achiv_preacher": "Preacher",
+        "achiv_preacher_text": "You got your first belivier",
+        "achiv_graham": "Grahamlike",
+        "achiv_graham_text": "You got five beliviers",
+        "achiv_caught":  "Caught!",
+        "achiv_caught_text":  "You were captured for the first time!",
+        "achiv_win": "You are the winner",
+        "achiv_win_text": "You finished the game",
     },
     "PT": {
         "sub_title": "Um Jogo Roguelike Furtivo",
@@ -405,6 +427,28 @@ TEXTS = {
         "help_interact": "INTERAÇÃO: Ande na direção de Terminais, Lojas e Painéis",
         "help_shadow": "ESCONDA INIMIGOS ATORDOADOS: Shift + setas para puxar, setas para empurrar",
         "log_body_seen": "ALERTA: PESSOA INCONSCIENTE - SUSPEITA DE INTRUSO!",
+        "achiv_stun": "Atordoado!!",
+        "achiv_stun_text": "Você atordoou um inimigo pela primeira vez",
+        "achiv_treasure": "Caçador de tesouros",
+        "achiv_treasure_text": "Você coletou 10 itens",
+        "achiv_steps": "Cuidado onde pisa!",
+        "achiv_steps_test": "Você chegou ao nível 12 sem cair em nenhuma armadilha",
+        "achiv_break": "Fazendo uma pausa",
+        "achiv_break_text": "Permanecendo em passagens secretas por mais de 300 turnos",
+        "achiv_sender": "O remetente",
+        "achiv_sender_text": "Você enviou sua primeira mensagem",
+        "achiv_librarian": "Bibliotecário",
+        "achiv_librarian_text": "Você pegou o livro!",
+        "achiv_pacifist": "Pacifista",
+        "achiv_pacifist_test": "Você chegou ao nível 12 sem atordoar nenhum inimigo",
+        "achiv_preacher": "Pregador",
+        "achiv_preacher_text": "Você conquistou seu primeiro crente",
+        "achiv_graham": "Grahamlike",
+        "achiv_graham_text": "Você conquistou cinco crentes",
+        "achiv_caught":  "Capturado!",
+        "achiv_caught_text":  "Você foi capturado pela primeira vez!",
+        "achiv_win": "Você é o vencedor",
+        "achiv_win_text": "Você terminou o jogo",
         
     }
 }
@@ -1554,7 +1598,7 @@ class Game:
                 # Ignora as posições se estiverem ocupadas pelo aliado ou grades
                 if self.map_data[cy][cx] in [TILE_BARS_1, TILE_BARS_2, TILE_PRISON]: continue
 
-                if len(self.guards) < (1.5*n_guards): self.guards.append(Guard(cx, cy))
+                if len(self.guards) < (2*n_guards): self.guards.append(Guard(cx, cy))
                 
     
     def generate_level(self):
@@ -1618,23 +1662,46 @@ class Game:
                         if self.map_data[cy+dy][cx+dx] == TILE_FLOOR:
                             self.map_data[cy+dy][cx+dx] = TILE_SHADOW
         
+        # --- POSICIONAMENTO DA ENTRADA ---
         self.player_x, self.player_y = rooms[0].center()
         self.stairs_up_x, self.stairs_up_y = rooms[0].center()
         self.map_data[self.stairs_up_y][self.stairs_up_x] = TILE_STAIR_UP
         self.tiles.append(Tiles_Up(self.stairs_up_x,self.stairs_up_y))
-        self.exit_x, self.exit_y = rooms[-1].center()
+        
+        # --- NOVA LÓGICA: ENCONTRAR A SALA MAIS DISTANTE PARA A SAÍDA ---
+        max_dist = -1
+        idx_exit = len(rooms) - 1 # Fallback para a última sala caso algo dê errado
+        
+        for i in range(1, len(rooms)):
+            rx, ry = rooms[i].center()
+            # Usamos o pathfinding para medir a distância em "passos" reais
+            path = self.find_path(self.stairs_up_x, self.stairs_up_y, rx, ry)
+            dist = len(path)
+            
+            # Fallback caso o pathfinding retorne vazio (ex: layout atípico)
+            if dist == 0:
+                dist = abs(self.stairs_up_x - rx) + abs(self.stairs_up_y - ry)
+                
+            if dist > max_dist:
+                max_dist = dist
+                idx_exit = i
+                
+        # Posiciona a saída na sala mais distante
+        self.exit_x, self.exit_y = rooms[idx_exit].center()
         self.map_data[self.exit_y][self.exit_x] = TILE_STAIR_DOWN
-        self.tiles.append(Tiles_Down(self.exit_x,self.exit_y))
-        self.term_x, self.term_y = rooms[len(rooms)//2].center()
-        self.map_data[self.term_y][self.term_x] = TILE_TERMINAL
+        self.tiles.append(Tiles_Down(self.exit_x, self.exit_y))
         
+        # --- POSICIONAMENTO DINÂMICO DOS OUTROS OBJETIVOS ---
+        # Filtramos as salas disponíveis para não sobrepor a entrada (0) e a saída (idx_exit)
+        available_rooms = [i for i in range(1, len(rooms)) if i != idx_exit]
         
-        idx_terminal = len(rooms) // 2
+        # Terminal (nota: limpei uma duplicação que havia no seu código original aqui)
+        idx_terminal = available_rooms[len(available_rooms) // 2] if available_rooms else 1
         self.term_x, self.term_y = rooms[idx_terminal].center()
         self.map_data[self.term_y][self.term_x] = TILE_TERMINAL
         self.tiles.append(Tiles_Terminal(self.term_x,self.term_y))
         
-        possible_rooms = [i for i in range(len(rooms)) if i != 0 and i != len(rooms)-1 and i != idx_terminal]
+        possible_rooms = [i for i in available_rooms if i != idx_terminal]
         idx_msg = -1
         if possible_rooms:
             idx_msg = random.choice(possible_rooms)
@@ -1644,18 +1711,15 @@ class Game:
             
         idx_bible = -1    
         if self.level == FINAL_LEVEL:
-            possible_room_bible = [i for i in range(len(rooms)) if i != 0 and i != len(rooms)-1 and i != idx_terminal and i!= idx_msg]
+            possible_room_bible = [i for i in possible_rooms if i != idx_msg]
             if possible_room_bible:
                 idx_bible = random.choice(possible_room_bible)
                 bx, by = rooms[idx_bible].center()
                 self.map_data[by][bx] = TILE_BIBLE
                 self.tiles.append(Tiles_Bible(bx,by))    
         
-        
-        
-        
-        # --- NOVO: GERADOR DO ALIADO / PRISÃO ---
-        used_rooms = {0, len(rooms)-1, idx_terminal, idx_msg, idx_bible}
+        # --- GERADOR DO ALIADO / PRISÃO ---
+        used_rooms = {0, idx_exit, idx_terminal, idx_msg, idx_bible}
         possible_ally_rooms = [i for i in range(len(rooms)) if i not in used_rooms]
         
         if self.level % 3 == 0 and possible_ally_rooms and random.random() < 0.5:
