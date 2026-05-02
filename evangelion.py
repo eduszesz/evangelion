@@ -243,7 +243,7 @@ TEXTS = {
         "achiv_treasure": "Treasure hunter",
         "achiv_treasure_text": "You collected 10 itens",
         "achiv_steps": "Look at where you step!",
-        "achiv_steps_test": "You make to level 12 without stepping in any trap",
+        "achiv_steps_text": "You make to level 12 without stepping in any trap",
         "achiv_break": "Taking a break",
         "achiv_break_text": "Staying in secret passages for more than 300 turns",
         "achiv_sender": "The sender",
@@ -251,15 +251,17 @@ TEXTS = {
         "achiv_librarian": "Librarian",
         "achiv_librarian_text": "You took the book!",
         "achiv_pacifist": "Pacifist",
-        "achiv_pacifist_test": "You make to level 12 without stun any enemy",
+        "achiv_pacifist_text": "You make to level 12 without stun any enemy",
         "achiv_preacher": "Preacher",
         "achiv_preacher_text": "You got your first belivier",
         "achiv_graham": "Grahamlike",
         "achiv_graham_text": "You got five beliviers",
         "achiv_caught":  "Caught!",
         "achiv_caught_text":  "You were captured for the first time!",
-        "achiv_win": "You are the winner",
+        "achiv_win": "Evangelist!",
         "achiv_win_text": "You finished the game",
+        "achiv_jail": "Jail breaker",
+        "achiv_jail_text": "You helped 3 allies escape",
     },
     "PT": {
         "sub_title": "Um Jogo Roguelike Furtivo",
@@ -428,7 +430,7 @@ TEXTS = {
         "achiv_treasure": "Caçador de tesouros",
         "achiv_treasure_text": "Você coletou 10 itens",
         "achiv_steps": "Cuidado onde pisa!",
-        "achiv_steps_test": "Você chegou ao nível 12 sem cair em nenhuma armadilha",
+        "achiv_steps_text": "Você chegou ao nível 12 sem cair em nenhuma armadilha",
         "achiv_break": "Fazendo uma pausa",
         "achiv_break_text": "Permanecendo em passagens secretas por mais de 300 turnos",
         "achiv_sender": "O remetente",
@@ -436,15 +438,17 @@ TEXTS = {
         "achiv_librarian": "Bibliotecário",
         "achiv_librarian_text": "Você pegou o livro!",
         "achiv_pacifist": "Pacifista",
-        "achiv_pacifist_test": "Você chegou ao nível 12 sem atordoar nenhum inimigo",
+        "achiv_pacifist_text": "Você chegou ao nível 12 sem atordoar nenhum inimigo",
         "achiv_preacher": "Pregador",
         "achiv_preacher_text": "Você conquistou seu primeiro crente",
         "achiv_graham": "Grahamlike",
         "achiv_graham_text": "Você conquistou cinco crentes",
         "achiv_caught":  "Capturado!",
         "achiv_caught_text":  "Você foi capturado pela primeira vez!",
-        "achiv_win": "Você é o vencedor",
+        "achiv_win": "Evangelista!",
         "achiv_win_text": "Você terminou o jogo",
+        "achiv_jail": "Escapista",
+        "achiv_jail_text": "Você ajudou 3 aliados a fugir",
         
     }
 }
@@ -894,7 +898,11 @@ class Game:
         self.language = "EN"
 
         self.show_help = False
-
+        
+        self.quit = False
+        self.quit_timer = 0
+        self.quit_start_time = 0 
+        
         # --- NOVO: Lê a resolução do monitor ---
         info = pygame.display.Info()
         desktop_w = info.current_w
@@ -992,6 +1000,15 @@ class Game:
         self.smoke_tile = pygame.Surface((TILE_WIDTH, TILE_HEIGHT))
         self.smoke_tile.fill((200, 200, 210))
         
+        self.popup_timer = 0
+        self.popup_text = ""
+        self.player_faith = 0
+        
+        # --- SISTEMA DE CONQUISTAS ---
+        self.unlocked_achievements = set() # Guarda IDs já conquistados
+        self.active_achievements = []    # Guarda o ID da conquista sendo exibida
+        self.achievement_timer = 0         # Temporizador do popup
+        
         self.game_start_time = pygame.time.get_ticks()
 
     def t(self, key, *args):
@@ -1000,6 +1017,85 @@ class Game:
             return text.format(*args)
         return text
 
+    def unlock_achievement(self, achiv_id):
+        # Verifica se já não foi desbloqueada antes
+        if achiv_id not in self.unlocked_achievements:
+            self.unlocked_achievements.add(achiv_id)
+            
+            # Adiciona a conquista e o tempo atual na lista de ativos
+            self.active_achievements.append({
+                'id': achiv_id,
+                'timer': pygame.time.get_ticks()
+            })
+            
+            # Toca um som de notificação
+            play_beep(600, 0.1)
+            play_beep(800, 0.2)
+    
+    def draw_achievement_popup(self):
+        current_time = pygame.time.get_ticks()
+        
+        # 1. Filtra a lista removendo as conquistas cujo tempo expirou (4500ms)
+        self.active_achievements = [a for a in self.active_achievements if current_time - a['timer'] < 4500]
+        
+        # Se não houver nenhuma ativa, encerra a função
+        if not self.active_achievements:
+            return
+            
+        sw, sh = self.screen.get_size()
+        
+        # 2. Itera sobre todas as conquistas ativas para desenhá-las
+        for index, achiv in enumerate(self.active_achievements):
+            elapsed_time = current_time - achiv['timer']
+            
+            # Pega os textos do dicionário bilíngue
+            title_key = f"achiv_{achiv['id']}"
+            text_key = f"achiv_{achiv['id']}_text"
+            
+            title_str = self.t(title_key)
+            text_str = self.t(text_key)
+            
+            # Renderiza as fontes
+            title_surf = self.font.render(title_str, True, (255, 215, 0)) # Dourado
+            text_surf = self.small_font.render(text_str, True, (255, 255, 255)) # Branco
+            
+            # Define o tamanho do popup dinamicamente baseado no texto
+            padding = 20
+            popup_w = max(title_surf.get_width(), text_surf.get_width()) + (padding * 2)
+            popup_w = max(popup_w, 300) # Largura mínima
+            popup_h = 80
+            
+            # 3. Lógica de Empilhamento (Offset)
+            # O popup mais antigo fica na base, os mais novos sobem (popup_h + 10 pixels de margem)
+            stack_offset = index * (popup_h + 10)
+            
+            # Posição: Canto inferior direito
+            popup_x = sw - popup_w - 20
+            popup_y = sh - popup_h - 20 - stack_offset
+            
+            # Animação de Fade out no último meio segundo (500ms)
+            alpha = 255
+            if elapsed_time > 4000:
+                # Corrigido o divisor para 500 para o fade ser suave de 255 a 0
+                alpha = int(255 * (4500 - elapsed_time) / 500) 
+            
+            # Cria a superfície do popup com suporte a transparência
+            popup_surf = pygame.Surface((popup_w, popup_h), pygame.SRCALPHA)
+            
+            # Desenha o fundo e a borda
+            pygame.draw.rect(popup_surf, (20, 20, 25, alpha), (0, 0, popup_w, popup_h)) # Fundo escuro
+            pygame.draw.rect(popup_surf, (100, 100, 100, alpha), (0, 0, popup_w, popup_h), 2) # Borda
+            
+            # Aplica o alpha nos textos
+            title_surf.set_alpha(alpha)
+            text_surf.set_alpha(alpha)
+            
+            # Desenha os textos na surface do popup
+            popup_surf.blit(title_surf, (padding, 15))
+            popup_surf.blit(text_surf, (padding, 45))
+            
+            # Blita o popup na tela principal
+            self.screen.blit(popup_surf, (popup_x, popup_y))
     
     def draw_help(self):
         sw, sh = self.screen.get_size()
@@ -1260,8 +1356,10 @@ class Game:
             "stats_allies_freed": self.stats_allies_freed,
             "stats_messages_sent": self.stats_messages_sent,
             "stat_convert": self.stats_guards_convert,
+            "stat_traps": self.stats_traps,
             "stat_edown": self.stats_energy_down,
             "stat_hack": self.stats_hack,
+            "stats_break": self.stats_break,
             "caught_by_name": self.caught_by_name
         }
         
@@ -1303,6 +1401,8 @@ class Game:
             self.stats_allies_freed = data.get("stats_allies_freed", 0)
             self.stats_messages_sent = data.get("stats_messages_sent", 0)
             self.stats_guards_convert = data.get("stat_convert",0)
+            self.stats_traps = data.get("stat_traps",0)
+            self.stats_break = data.get("stats_break",0)
             self.stats_energy_down = data.get("stat_edown",0)
             self.stats_hack = data.get("stat_hack",0)
             self.caught_by_name = data.get("caught_by_name", "npc_Unknown")
@@ -1507,6 +1607,8 @@ class Game:
         self.stats_allies_freed = 0
         self.stats_messages_sent = 0
         self.stats_guards_convert = 0
+        self.stats_traps = 0
+        self.stats_break = 0
         self.stats_hack = 0
         self.stats_energy_down = 0
         self.caught_by_name = "npc_Unknown"
@@ -1535,6 +1637,7 @@ class Game:
         if not INVENSIVEL:
             self.caught_by_name = npc_type
             self.set_state("CAUGHT")
+            self.unlock_achievement("caught")
             self.caught_start_time = pygame.time.get_ticks()
             play_beep(100, 0.4)
             play_beep(80, 0.4)
@@ -1938,6 +2041,9 @@ class Game:
                             self.player_heat +=1
                             self.stats_npcs_stunned += 1
                             self.add_log(self.t("log_emp"))
+                            # --- DISPARA A CONQUISTA AQUI ---
+                            if self.stats_npcs_stunned == 1:
+                                self.unlock_achievement("stun")
             elif item == "KIT": 
                 self.player_stun = 0; self.player_drunk = 0
                 self.add_log(self.t("log_kit"))
@@ -1980,6 +2086,10 @@ class Game:
                             e.hacked = True
                             e.suspicion = 0
                             self.stats_guards_convert += 1
+                            if self.stats_guards_convert == 1:
+                                self.unlock_achievement("preacher")
+                            if self.stats_guards_convert == 5:
+                                self.unlock_achievement("graham")
                             self.active_waves.append({"x": self.player_x, "y": self.player_y, "r": 0, "max_r": 5, "color": (0, 255, 100)})
                         else:
                             self.add_log(self.t("log_resist"))
@@ -2020,6 +2130,11 @@ class Game:
             if self.map_data[ny][nx] == TILE_WALL or any(c.x == nx and c.y == ny for c in self.cameras):
                 return  
             
+            if self.map_data[ny][nx] in [TILE_SECRET_DOOR, TILE_SECRET_FLOOR]:
+                self.stats_break +=1
+            if self.stats_break == 300:
+                self.unlock_achievement("break")
+            
             # --- NOVO: Bater nas grades da prisão ---
             if self.map_data[ny][nx] in [TILE_BARS_1, TILE_BARS_2]:
                 for ally in self.allies:
@@ -2039,6 +2154,8 @@ class Game:
                             ally.bars = []
                             ally.is_free = True
                             self.stats_allies_freed += 1
+                            if self.stats_allies_freed == 3:
+                                self.unlock_achievement("jail")
                             
                             # REVELAÇÃO DA PASSAGEM SECRETA
                             for sy in range(MAP_HEIGHT):
@@ -2102,6 +2219,8 @@ class Game:
                         if self.hack_progress >= 5: 
                             self.terminal_hacked = True; self.alarm_timer = 60; play_beep(880, 0.4)
                             self.stats_messages_sent += 1
+                            if self.stats_messages_sent == 1:
+                                self.unlock_achievement("sender")
                             self.add_log(self.t("log_hack_ok"))
                             self.add_log(self.t("log_msg_sent"))
                             self.add_log(self.t("log_alarm"))
@@ -2194,6 +2313,9 @@ class Game:
                                             self.add_log(self.t("log_shadow"))
                                             self.stats_npcs_stunned += 1
                                             self.player_heat +=1
+                                            # --- DISPARA A CONQUISTA AQUI ---
+                                            if self.stats_npcs_stunned == 1:
+                                                self.unlock_achievement("stun")
                                         else: 
                                             self.trigger_caught(); return
                                 else:
@@ -2244,6 +2366,7 @@ class Game:
 
                             if tile == TILE_BIBLE and self.terminal_hacked:
                                 self.has_the_book = True
+                                self.unlock_achievement("librarian")
                                 if self.player_faith < 100:
                                     self.player_faith = 100
                                 self.map_data[ny][nx] = TILE_FLOOR
@@ -2262,6 +2385,8 @@ class Game:
                             if tile == TILE_ITEM:
                                 self.inventory.append(random.choice(["EMP", "KIT", "INV","HACK","EMP","INV","HACK", "DECOY"]))
                                 self.stats_items_collected += 1
+                                if self.stats_items_collected == 10:
+                                    self.unlock_achievement("treasure")
                                 self.map_data[ny][nx] = TILE_FLOOR
                                 for i in self.tiles:
                                     if isinstance(i,Tiles_Item):
@@ -2276,6 +2401,7 @@ class Game:
                             elif tile == TILE_SPIKES:
                                 self.player_stun = 5
                                 self.map_data[ny][nx] = TILE_FLOOR
+                                self.stats_traps += 1
                                 for i in self.tiles:
                                     if isinstance(i,Tiles_Traps):
                                         if i.x == nx and i.y == ny:
@@ -2287,6 +2413,7 @@ class Game:
                             elif tile == TILE_DRUNK:
                                 self.player_drunk = 7
                                 self.map_data[ny][nx] = TILE_FLOOR
+                                self.stats_traps += 1
                                 for i in self.tiles:
                                     if isinstance(i,Tiles_Traps):
                                         if i.x == nx and i.y == ny:
@@ -2299,6 +2426,7 @@ class Game:
                                 if self.alarm_timer <=0:
                                     self.alarm_timer = max(self.alarm_timer, heat)
                                     self.player_heat +=1
+                                    self.stats_traps += 1
                             elif tile == TILE_STAIR_DOWN:
                                 if self.alarm_timer > 0:
                                     self.add_log(self.t("log_alarm"))
@@ -2331,6 +2459,7 @@ class Game:
                                     if self.level == 1:
                                         if self.has_the_book:
                                             self.set_state("WIN")
+                                            self.unlock_achievement("win")
                                         else:
                                             self.add_log(self.t("log_need_book"))
                                             self.player_x, self.player_y = self.player_x - dx, self.player_y - dy
@@ -2589,6 +2718,11 @@ class Game:
             self.add_log(self.t("log_faith"))
             play_beep(600, 0.2)
             play_beep(800, 0.2)
+        
+        if self.level == FINAL_LEVEL and self.stats_traps == 0:
+            self.unlock_achievement("steps")
+        if self.level == FINAL_LEVEL and self.stats_npcs_stunned == 0:
+            self.unlock_achievement("pacifist")    
         
         self.update_music()
         self.update_player_fov()
@@ -3143,6 +3277,7 @@ class Game:
         self.screen.blit(scaled_surface, (0, 0))
         if self.show_help:
             self.draw_help()
+        self.draw_achievement_popup()
         pygame.display.flip()
 
     def run(self):
@@ -3234,7 +3369,6 @@ class Game:
                     elif event.key in (pygame.K_c, pygame.K_l): 
                         self.origin_state = "START" 
                         self.state = "MENU_LOAD"
-                        #self.load_game()
                     elif event.key == pygame.K_m: 
                         self.music_enabled = not self.music_enabled
                         self.update_music() 
@@ -3280,10 +3414,6 @@ class Game:
                             self.set_state("PLAYING")
                         elif event.key == pygame.K_s:
                             self.state = "MENU_SAVE"
-                            #self.save_game()
-                        elif event.key in (pygame.K_l, pygame.K_c):
-                            self.state = "MENU_LOAD"
-                            #self.load_game()
                         elif event.key == pygame.K_q:
                             pygame.quit()
                             sys.exit()
@@ -3293,9 +3423,9 @@ class Game:
                         if keys[pygame.K_y]:
                             self.save_game()
                             self.add_log(self.t("save_final"))
-                            pygame.time.delay(2000)
-                            pygame.quit()
-                            sys.exit()
+                            self.state = "MENU"
+                            self.quit_start_time = pygame.time.get_ticks()
+                            self.quit = True
                         elif keys[pygame.K_n]:
                             self.state = "PLAYING"
                             
@@ -3409,7 +3539,7 @@ class Game:
             
             if self.state == "CAUGHT":
                 now = pygame.time.get_ticks()
-                if now - self.caught_start_time > 2000:
+                if now - self.caught_start_time > 5000:
                     self.set_state("GAMEOVER") 
             
             if self.state == "PLAYING" and self.auto_path:
@@ -3428,7 +3558,11 @@ class Game:
                         
                         self.move_entities(dx, dy)
                         self.last_auto_move = now
-            
+            if self.quit:
+                now = pygame.time.get_ticks()
+                if now - self.quit_start_time > 2000: 
+                    pygame.quit()
+                    sys.exit()
             self.draw()
             self.clock.tick(30)
                 
