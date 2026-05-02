@@ -5,7 +5,7 @@ import array
 import sys
 import os
 import json
-#test git
+
 
 # --- Configurações Gerais ---
 SCREEN_WIDTH, SCREEN_HEIGHT = 1500, 980
@@ -79,7 +79,7 @@ TEXTS = {
     "EN": {
         "sub_title": "A Stealth Roguelike Game",
         "start_new": "(N / SPACE) NEW GAME",
-        "start_load": "(C / L) LOAD GAME",
+        "start_load": "(C / L) CONTINUE GAME",
         "start_music": "(M) MUSIC: {}",
         "start_lang": "(T) LANGUAGE: ENGLISH",
         "start_quit": "(Q) QUIT",
@@ -104,17 +104,15 @@ TEXTS = {
         "menu_title": "MENU",
         "opt_music": "(M) Toggle Music",
         "opt_restart": "(R) Restart Game",
-        "opt_save": "(S) Save Game",
-        "opt_load": "(L/C) Load Game",
+        "opt_save": "(S) Save & Quit",
+        "opt_load": "(L/C) Continue Game",
         "opt_lang": "(T) Language: EN",
         "opt_resume": "(ESC) Resume Game",
         "opt_quit": "(Q) Quit",
-        "save_title": "SAVE GAME TO WHICH SLOT?",
-        "load_title": "LOAD WHICH SLOT?",
-        "slot_occ": "[OCCUPIED]",
-        "slot_emp": "[EMPTY]",
-        "slot_txt": "({}) - Slot {} {}",
-        "slot_del": "(X + Number) DELETE SLOT",
+        "load_title": "CONTINUE GAME (Y/N)",
+        "save_confirm": "SAVE AND QUIT? (Y/N)",
+        "save_cancel": "ACTION CANCELED.",
+        "save_final": "SYSTEM: GAME SAVED. CLOSING...",
         "slot_back": "(ESC) Back",
         "log_shop_enter": "SYSTEM: SHOP ACCESSED. Press a letter then an inventory number to swap.",
         "log_shop_inst": "SYSTEM: Trades left: {}.",
@@ -150,10 +148,10 @@ TEXTS = {
         "log_need_book": "YOU NEED TO GET THE BOOK ON LEVEL 12 BEFORE ESCAPING!",
         "log_return": "RETURNING TO LEVEL {}",
         "log_dog": "DOG DETECTED SCENT!",
-        "log_save_ok": "SYSTEM: GAME SAVED SUCCESSFULLY IN SLOT {}.",
+        "log_save_ok": "SYSTEM: GAME SAVED. YOU CAN NOW QUIT.",
         "log_save_err": "SAVE ERROR: {}",
-        "log_load_ok": "SYSTEM: SLOT {} LOADED SUCCESSFULLY.",
-        "log_load_emp": "SYSTEM: SLOT {} IS EMPTY.",
+        "log_load_ok": "SYSTEM: GAME RESUMED. SAVE FILE DESTROYED.",
+        "log_load_emp": "SYSTEM: NO SAVE FILE FOUND.",
         "log_load_err": "LOAD ERROR: {}",
         "log_del_ok": "SYSTEM: SLOT {} DELETED SUCCESSFULLY.",
         "log_del_emp": "SYSTEM: SLOT {} WAS ALREADY EMPTY.",
@@ -266,7 +264,7 @@ TEXTS = {
     "PT": {
         "sub_title": "Um Jogo Roguelike Furtivo",
         "start_new": "(N / ESPAÇO) NOVO JOGO",
-        "start_load": "(C / L) CARREGAR JOGO",
+        "start_load": "(C / L) CONTINUAR JOGO",
         "start_music": "(M) MÚSICA: {}",
         "start_lang": "(T) IDIOMA: PORTUGUÊS",
         "start_quit": "(Q) SAIR",
@@ -291,17 +289,15 @@ TEXTS = {
         "menu_title": "MENU",
         "opt_music": "(M) Ligar/Desligar Música",
         "opt_restart": "(R) Reiniciar Jogo",
-        "opt_save": "(S) Salvar Jogo",
-        "opt_load": "(L/C) Carregar Jogo",
+        "opt_save": "(S) Salvar e Sair",
+        "opt_load": "(L/C) Continuar Jogo",
         "opt_lang": "(T) Idioma: PT-BR",
         "opt_resume": "(ESC) Voltar ao Jogo",
         "opt_quit": "(Q) Sair",
-        "save_title": "SALVAR JOGO EM QUAL SLOT?",
-        "load_title": "CARREGAR QUAL SLOT?",
-        "slot_occ": "[OCUPADO]",
-        "slot_emp": "[VAZIO]",
-        "slot_txt": "({}) - Slot {} {}",
-        "slot_del": "(X + Número) APAGAR SLOT",
+        "load_title": "CONTINUAR JOGO (Y/N)",
+        "save_confirm": "SALVAR E SAIR? (Y/N)",
+        "save_cancel": "AÇÃO CANCELADA.",
+        "save_final": "SISTEMA: JOGO SALVO. FECHANDO...",
         "slot_back": "(ESC) Voltar",
         "log_shop_enter": "SISTEMA: LOJA ACESSADA. Pressione uma letra e depois um número do inventário para trocar.",
         "log_shop_inst": "SISTEMA: Trocas restantes: {}.",
@@ -337,11 +333,11 @@ TEXTS = {
         "log_need_book": "VOCÊ PRECISA PEGAR O LIVRO NO NÍVEL 12 ANTES DE FUGIR!",
         "log_return": "RETORNANDO AO NÍVEL {}",
         "log_dog": "CÃO DETECTOU CHEIRO!",
-        "log_save_ok": "SISTEMA: JOGO SALVO COM SUCESSO NO SLOT {}.",
+        "log_save_ok": "SISTEMA: JOGO SALVO. SEGURO PARA SAIR.",
         "log_save_err": "ERRO AO SALVAR: {}",
-        "log_load_ok": "SISTEMA: SLOT {} CARREGADO COM SUCESSO.",
-        "log_load_emp": "SISTEMA: O SLOT {} ESTÁ VAZIO.",
-        "log_load_err": "ERRO AO CARREGAR: {}",
+        "log_load_ok": "SISTEMA: JOGO RETOMADO. ARQUIVO DE SAVE DESTRUÍDO.",
+        "log_load_emp": "SISTEMA: NENHUM SAVE ENCONTRADO.",
+        "log_load_err": "ERRO AO CARREGAR",
         "log_del_ok": "SISTEMA: SLOT {} FOI APAGADO COM SUCESSO.",
         "log_del_emp": "SISTEMA: O SLOT {} JÁ ESTAVA VAZIO.",
         "log_del_err": "ERRO AO APAGAR: {}",
@@ -1203,9 +1199,9 @@ class Game:
             return []
         return self.get_path_to_target(start_x, start_y, self.panel_x, self.panel_y)
     
-    def save_game(self, slot=1):
+    def save_game(self):
         self.save_current_level()
-        filename = f"savegame_slot{slot}.json"
+        filename = "savegame.json"
         
         serialized_worlds = {}
         for lvl_num, data in self.worlds.items():
@@ -1272,13 +1268,17 @@ class Game:
         try:
             with open(filename, "w") as f:
                 json.dump(data_to_save, f)
-            self.add_log(self.t("log_save_ok", slot))
-            self.set_state("PLAYING")
+            
         except Exception as e:
             self.add_log(self.t("log_save_err", e))
     
-    def load_game(self, slot=1):
-        filename = f"savegame_slot{slot}.json"
+    def load_game(self):
+        filename = "savegame.json" # Arquivo único
+        
+        if not os.path.exists(filename):
+            self.add_log(self.t("log_load_emp"))
+            return False
+
         try:
             with open(filename, "r") as f:
                 data = json.load(f)
@@ -1430,13 +1430,18 @@ class Game:
             self.load_level(self.level)
             self.update_player_fov()
             
-            self.add_log(self.t("log_load_ok", slot))
-            self.set_state("PLAYING")
+            # --- MÁGICA DO PERMADEATH AQUI ---
+            os.remove(filename) # Exclui o arquivo assim que carregar com sucesso
             
-        except FileNotFoundError:
-            self.add_log(self.t("log_load_emp", slot))
+            self.add_log(self.t("log_load_ok"))
+            self.set_state("PLAYING")
+            return True
+            
         except Exception as e:
             self.add_log(self.t("log_load_err", e))
+            return False
+
+            
     
     def delete_save(self, slot=1):
         filename = f"savegame_slot{slot}.json"
@@ -3101,7 +3106,7 @@ class Game:
                     self.t("opt_music"),
                     self.t("opt_restart"),
                     self.t("opt_save"),
-                    self.t("opt_load"),
+                    #self.t("opt_load"),
                     self.t("opt_lang"),
                     self.t("opt_help"),
                     self.t("opt_resume"),
@@ -3116,21 +3121,9 @@ class Game:
                     self.virtual_surface.blit(txt, (center_x - txt.get_width()//2, 350 + i * 50))
 
             elif self.state in ("MENU_SAVE", "MENU_LOAD"):
-                title_text = self.t("save_title") if self.state == "MENU_SAVE" else self.t("load_title")
+                title_text = self.t("save_confirm") if self.state == "MENU_SAVE" else self.t("load_title")
                 title = self.title_font.render(title_text, True, COLOR_PLAYER)
                 self.virtual_surface.blit(title, (center_x - title.get_width()//2, 200))
-
-                for slot in range(1, 4):
-                    status_key = "slot_occ" if os.path.exists(f"savegame_slot{slot}.json") else "slot_emp"
-                    status = self.t(status_key)
-                    color = (200, 200, 200) if status_key == "slot_emp" else COLOR_ITEM
-                    
-                    texto_slot = self.t("slot_txt", slot, slot, status)
-                    txt = self.font.render(texto_slot, True, color)
-                    self.virtual_surface.blit(txt, (center_x - txt.get_width()//2, 350 + (slot-1) * 60))
-
-                delete_hint = self.font.render(self.t("slot_del"), True, (255, 100, 100))
-                self.virtual_surface.blit(delete_hint, (center_x - delete_hint.get_width()//2, 500))
                 
                 txt_voltar = self.font.render(self.t("slot_back"), True, (150, 150, 150))
                 self.virtual_surface.blit(txt_voltar, (center_x - txt_voltar.get_width()//2, 550))
@@ -3241,6 +3234,7 @@ class Game:
                     elif event.key in (pygame.K_c, pygame.K_l): 
                         self.origin_state = "START" 
                         self.state = "MENU_LOAD"
+                        #self.load_game()
                     elif event.key == pygame.K_m: 
                         self.music_enabled = not self.music_enabled
                         self.update_music() 
@@ -3285,34 +3279,35 @@ class Game:
                             self.add_log(self.t("log_intro3"))
                             self.set_state("PLAYING")
                         elif event.key == pygame.K_s:
-                            self.state = "MENU_SAVE" 
+                            self.state = "MENU_SAVE"
+                            #self.save_game()
                         elif event.key in (pygame.K_l, pygame.K_c):
-                            self.state = "MENU_LOAD" 
+                            self.state = "MENU_LOAD"
+                            #self.load_game()
                         elif event.key == pygame.K_q:
                             pygame.quit()
                             sys.exit()
 
                     elif self.state == "MENU_SAVE":
                         keys = pygame.key.get_pressed()
-                        if keys[pygame.K_x]:
-                            if event.key == pygame.K_1: self.delete_save(1)
-                            elif event.key == pygame.K_2: self.delete_save(2)
-                            elif event.key == pygame.K_3: self.delete_save(3)
-                        else:
-                            if event.key == pygame.K_1: self.save_game(1)
-                            elif event.key == pygame.K_2: self.save_game(2)
-                            elif event.key == pygame.K_3: self.save_game(3)
+                        if keys[pygame.K_y]:
+                            self.save_game()
+                            self.add_log(self.t("save_final"))
+                            pygame.time.delay(2000)
+                            pygame.quit()
+                            sys.exit()
+                        elif keys[pygame.K_n]:
+                            self.state = "PLAYING"
+                            
 
                     elif self.state == "MENU_LOAD":
                         keys = pygame.key.get_pressed()
-                        if keys[pygame.K_x]:
-                            if event.key == pygame.K_1: self.delete_save(1)
-                            elif event.key == pygame.K_2: self.delete_save(2)
-                            elif event.key == pygame.K_3: self.delete_save(3)
-                        else:
-                            if event.key == pygame.K_1: self.load_game(1)
-                            elif event.key == pygame.K_2: self.load_game(2)
-                            elif event.key == pygame.K_3: self.load_game(3)
+                        keys = pygame.key.get_pressed()
+                        if keys[pygame.K_y]:
+                            self.load_game()
+                        elif keys[pygame.K_n]:
+                            self.state = "START"
+                        
                        
                     continue 
                 
