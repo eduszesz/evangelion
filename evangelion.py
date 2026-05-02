@@ -234,7 +234,7 @@ TEXTS = {
         "start_help": "(H) HELP",
         "opt_help": "(H) Help",
         "help_mouse": "[MOUSE CLICK]: Auto-move to explored area",
-        "help_obj": "OBJECTIVE: Hack Terminal, find the message, get the Book at Lv 12",
+        "help_obj": "OBJECTIVE: Find the message, hack terminal, get the Book at level 12",
         "help_interact": "INTERACT: Move into Terminals, Shops, and Panels",
         "help_shadow": "HIDE STUNNED ENEMIES: shift+arrow keys pull, arrow keys push",
         "log_body_seen": "ALERT: UNCONSCIOUS PERSONNEL SPOTTED!",
@@ -245,7 +245,7 @@ TEXTS = {
         "achiv_steps": "Look at where you step!",
         "achiv_steps_text": "You make to level 12 without stepping in any trap",
         "achiv_break": "Taking a break",
-        "achiv_break_text": "Staying in secret passages for more than 300 turns",
+        "achiv_break_text": "Staying in secret passages for more than 120 turns",
         "achiv_sender": "The sender",
         "achiv_sender_text": "You sent your first message",
         "achiv_librarian": "Librarian",
@@ -257,7 +257,7 @@ TEXTS = {
         "achiv_graham": "Grahamlike",
         "achiv_graham_text": "You got five beliviers",
         "achiv_caught":  "Caught!",
-        "achiv_caught_text":  "You were captured for the first time!",
+        "achiv_caught_text":  "You were captured!",
         "achiv_win": "Evangelist!",
         "achiv_win_text": "You finished the game",
         "achiv_jail": "Jail breaker",
@@ -421,7 +421,7 @@ TEXTS = {
         "start_help": "(H) AJUDA",
         "opt_help": "(H) Ajuda",
         "help_mouse": "[CLIQUE DO MOUSE]: Mover automaticamente",
-        "help_obj": "OBJETIVO: Hackear Terminal, achar a mensagem, pegar O Livro no Nv 12",
+        "help_obj": "OBJETIVO: Achar a mensagem, hackear o terminal, , pegar O Livro no Nível 12",
         "help_interact": "INTERAÇÃO: Ande na direção de Terminais, Lojas e Painéis",
         "help_shadow": "ESCONDA INIMIGOS ATORDOADOS: Shift + setas para puxar, setas para empurrar",
         "log_body_seen": "ALERTA: PESSOA INCONSCIENTE - SUSPEITA DE INTRUSO!",
@@ -432,7 +432,7 @@ TEXTS = {
         "achiv_steps": "Cuidado onde pisa!",
         "achiv_steps_text": "Você chegou ao nível 12 sem cair em nenhuma armadilha",
         "achiv_break": "Fazendo uma pausa",
-        "achiv_break_text": "Permanecendo em passagens secretas por mais de 300 turnos",
+        "achiv_break_text": "Permanecendo em passagens secretas por mais de 120 turnos",
         "achiv_sender": "O remetente",
         "achiv_sender_text": "Você enviou sua primeira mensagem",
         "achiv_librarian": "Bibliotecário",
@@ -444,7 +444,7 @@ TEXTS = {
         "achiv_graham": "Grahamlike",
         "achiv_graham_text": "Você conquistou cinco crentes",
         "achiv_caught":  "Capturado!",
-        "achiv_caught_text":  "Você foi capturado pela primeira vez!",
+        "achiv_caught_text":  "Você foi capturado!",
         "achiv_win": "Evangelista!",
         "achiv_win_text": "Você terminou o jogo",
         "achiv_jail": "Escapista",
@@ -2077,8 +2077,7 @@ class Game:
                         
                         self.player_faith = 0
                         chance = random.random()
-                        c_limit = (0.35+(self.level/100))*math.exp(-1.8*i) #(0.6+(self.level/100))*math.exp(-1.8*i)
-                        #print(str(chance)+"<="+str(c_limit)) #debug convert
+                        c_limit = (0.35+(self.level/100))*math.exp(-1.8*i)
                         i+=1
                         if chance <= c_limit:
                             self.add_log(self.t("log_convert"))
@@ -2132,8 +2131,7 @@ class Game:
             
             if self.map_data[ny][nx] in [TILE_SECRET_DOOR, TILE_SECRET_FLOOR]:
                 self.stats_break +=1
-            if self.stats_break == 300:
-                self.unlock_achievement("break")
+            
             
             # --- NOVO: Bater nas grades da prisão ---
             if self.map_data[ny][nx] in [TILE_BARS_1, TILE_BARS_2]:
@@ -2723,7 +2721,8 @@ class Game:
             self.unlock_achievement("steps")
         if self.level == FINAL_LEVEL and self.stats_npcs_stunned == 0:
             self.unlock_achievement("pacifist")    
-        
+        if self.stats_break == 120:
+                self.unlock_achievement("break")
         self.update_music()
         self.update_player_fov()
     
@@ -2979,8 +2978,8 @@ class Game:
                         # Se o jogador estiver na exata casa onde o texto seria desenhado (acima)
                         if self.player_x == d.x and self.player_y == d.y - 1:
                             texto_offset_y = 1 # Empurra o texto para debaixo do decoy
-                            
-                        self.draw_text_on_map(str(d.timer), d.x, d.y, (200, 200, 200), offset_y=texto_offset_y)
+                        if d.timer > 0:    
+                            self.draw_text_on_map(str(d.timer), d.x, d.y, (200, 200, 200), offset_y=texto_offset_y)
             
             
             
@@ -3497,6 +3496,8 @@ class Game:
                     
                     if event.key == pygame.K_SPACE:
                         self.move_entities(0, 0)
+                        if self.map_data[self.player_y][self.player_x] in [TILE_SECRET_DOOR, TILE_SECRET_FLOOR]:
+                            self.stats_break += 1
                         continue
                     
                     if event.key == pygame.K_PAGEUP:
