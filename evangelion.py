@@ -83,6 +83,8 @@ TEXTS = {
         "start_music": "(M) MUSIC: {}",
         "start_lang": "(T) LANGUAGE: ENGLISH",
         "start_quit": "(Q) QUIT",
+        "start_achiv": "(A) ACHIEVEMENTS",
+        "opt_achiv": "(A) Achievements",
         "music_on": "ON",
         "music_off": "OFF",
         "fail_title": "MISSION FAILED",
@@ -228,7 +230,7 @@ TEXTS = {
         "help_move": "[ARROW KEYS]: Movement",
         "help_wait": "[SPACE]: Skip Turn",
         "help_items": "[1 a 9]: Use Itens",
-        "help_close": "[H] ou [ESC]: Close Help",
+        "help_close": "(ESC / H): Close Help",
         "help_tip": "TIP: Side or rear strikes stun the guards.",
         "help_pray": "[P]: Convert guards and enginners",
         "start_help": "(H) HELP",
@@ -270,6 +272,8 @@ TEXTS = {
         "start_music": "(M) MÚSICA: {}",
         "start_lang": "(T) IDIOMA: PORTUGUÊS",
         "start_quit": "(Q) SAIR",
+        "start_achiv": "(A) CONQUISTAS",
+        "opt_achiv": "(A) Conquistas",
         "music_on": "LIGADA",
         "music_off": "DESLIGADA",
         "fail_title": "MISSÃO FRACASSADA",
@@ -415,7 +419,7 @@ TEXTS = {
         "help_move": "[SETAS]: Movimentação",
         "help_wait": "[ESPAÇO]: Passar Turno",
         "help_items": "[1 a 9]: Usar Itens",
-        "help_close": "[H] ou [ESC]: Fechar Help",
+        "help_close": "(ESC / H): Fechar Help",
         "help_tip": "DICA: Atordoe guardas batendo pelos lados ou por trás.",
         "help_pray": "[P]: Converte guardas e engenheiros",
         "start_help": "(H) AJUDA",
@@ -1032,6 +1036,61 @@ class Game:
             play_beep(600, 0.1)
             play_beep(800, 0.2)
     
+    def draw_achievements(self):
+        # Use as dimensões fixas da virtual_surface em vez de screen.get_size()
+        sw, sh = SCREEN_WIDTH, SCREEN_HEIGHT 
+        
+        # Desenha na virtual_surface
+        self.virtual_surface.fill((15, 15, 20)) # Limpa o fundo
+        
+        # Título da tela
+        title_str = "CONQUISTAS" if self.language == "PT" else "ACHIEVEMENTS"
+        title_surf = self.title_font.render(title_str, True, COLOR_PLAYER)
+        self.virtual_surface.blit(title_surf, ((sw - title_surf.get_width()) // 2, 50))
+        
+        # Lista com os IDs das conquistas baseada no seu dicionário
+        achievements_list = [
+            "stun", "treasure", "steps", "break", "sender", "librarian", 
+            "pacifist", "preacher", "graham", "caught", "win", "jail"
+        ]
+        
+        # Configurações de layout responsivo (2 colunas)
+        start_y = 150
+        col_width = min(sw // 2, 600) # Máximo de 600px por coluna para não ficar esticado
+        total_width = col_width * 2
+        start_x = (sw - total_width) // 2
+        
+        for i, achiv_id in enumerate(achievements_list):
+            # Verifica se o ID está no seu set de conquistas desbloqueadas
+            is_unlocked = achiv_id in self.unlocked_achievements
+            
+            # Define as cores: Amarelo se alcançada, Cinza se não
+            title_color = (255, 215, 0) if is_unlocked else (100, 100, 100)
+            desc_color = (200, 200, 200) if is_unlocked else (60, 60, 60)
+            
+            # Busca os textos no dicionário
+            title_text = self.t(f"achiv_{achiv_id}")
+            desc_text = self.t(f"achiv_{achiv_id}_text")
+            
+            title_surf = self.font.render(title_text, True, title_color)
+            desc_surf = self.small_font.render(desc_text, True, desc_color)
+            
+            # Calcula a posição da linha e coluna
+            col = i % 2
+            row = i // 2
+            
+            x = start_x + (col * col_width) + 20 # 20px de padding interno
+            y = start_y + (row * 80)
+            
+            self.virtual_surface.blit(title_surf, (x, y))
+            self.virtual_surface.blit(desc_surf, (x, y + 30))
+            
+        # Instrução para voltar
+        back_str = "(ESC / A) VOLTAR" if self.language == "PT" else "(ESC / A) BACK"
+        back_surf = self.font.render(back_str, True, (255, 255, 255))
+        self.virtual_surface.blit(back_surf, ((sw - back_surf.get_width()) // 2, sh - 80))
+    
+    
     def draw_achievement_popup(self):
         current_time = pygame.time.get_ticks()
         
@@ -1098,19 +1157,21 @@ class Game:
             self.screen.blit(popup_surf, (popup_x, popup_y))
     
     def draw_help(self):
-        sw, sh = self.screen.get_size()
+        # Usamos as dimensões fixas da superfície virtual (1500x980)
+        sw, sh = SCREEN_WIDTH, SCREEN_HEIGHT 
         
-        # Overlay semi-transparente um pouco mais escuro para melhorar a leitura
+        # Overlay semi-transparente criado com o tamanho da superfície virtual
         overlay = pygame.Surface((sw, sh), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 220)) 
-        self.screen.blit(overlay, (0, 0))
+        self.virtual_surface.blit(overlay, (0, 0)) # Desenha na virtual_surface
     
         w, h = 820, 500
         x = (sw - w) // 2
         y = (sh - h) // 2
     
-        pygame.draw.rect(self.screen, (25, 25, 35), (x, y, w, h))
-        pygame.draw.rect(self.screen, COLOR_PLAYER, (x, y, w, h), 3)
+        # Desenha os retângulos do menu de ajuda
+        pygame.draw.rect(self.virtual_surface, (25, 25, 35), (x, y, w, h))
+        pygame.draw.rect(self.virtual_surface, COLOR_PLAYER, (x, y, w, h), 3)
     
         # Estrutura: (chave_do_dicionario, cor, usar_fonte_grande)
         help_content = [
@@ -1143,7 +1204,8 @@ class Game:
             text_surf = font_to_use.render(text_str, True, color)
             
             text_x = (sw - text_surf.get_width()) // 2
-            self.screen.blit(text_surf, (text_x, current_y))
+            # Blita o texto na superfície virtual
+            self.virtual_surface.blit(text_surf, (text_x, current_y))
             
             current_y += font_to_use.get_height() + 10
     
@@ -2764,7 +2826,9 @@ class Game:
     def draw(self):
         self.virtual_surface.fill(COLOR_BG)
         
-        if self.state == "START":
+        if self.state == "ACHIEVEMENTS":
+            self.draw_achievements()
+        elif self.state == "START":
             txt = self.title_font.render("εv@ngεlion", True, COLOR_PLAYER)
             self.virtual_surface.blit(txt, (SCREEN_WIDTH//2 - txt.get_width()//2, 300))
             sub = self.font.render(self.t("sub_title"), True, (255,255,255))
@@ -2776,6 +2840,7 @@ class Game:
                 self.t("start_load"),
                 self.t("start_music", music_txt),
                 self.t("start_lang"),
+                self.t("start_achiv"),
                 self.t("start_help"),
                 self.t("start_quit")
             ]
@@ -2785,7 +2850,6 @@ class Game:
                 if i == 2 and not self.music_enabled: color = (100, 100, 100)
                 txt_surf = self.font.render(text, True, color)
                 self.virtual_surface.blit(txt_surf, (SCREEN_WIDTH//2 - txt_surf.get_width()//2, SCREEN_HEIGHT//2 + i * 50))
-        
         
         elif self.state in ("GAMEOVER", "WIN"):
             title_text = self.t("fail_title") if self.state == "GAMEOVER" else self.t("win_title")
@@ -3239,7 +3303,7 @@ class Game:
                     self.t("opt_music"),
                     self.t("opt_restart"),
                     self.t("opt_save"),
-                    #self.t("opt_load"),
+                    self.t("opt_achiv"),
                     self.t("opt_lang"),
                     self.t("opt_help"),
                     self.t("opt_resume"),
@@ -3277,6 +3341,8 @@ class Game:
         if self.show_help:
             self.draw_help()
         self.draw_achievement_popup()
+        scaled_surface = pygame.transform.scale(self.virtual_surface, self.current_window_size)
+        self.screen.blit(scaled_surface, (0, 0))
         pygame.display.flip()
 
     def run(self):
@@ -3339,8 +3405,18 @@ class Game:
                 if event.key == pygame.K_h and self.state != "GAMEOVER":
                     self.show_help = not self.show_help  # Toggle (abre/fecha)
                     continue # Impede que o 'h' faça outra coisa
+                if event.key == pygame.K_a:
+                        # Se estiver no menu principal ou no menu de pausa, vai para conquistas
+                        if self.state in ["START", "MENU"]:
+                            self.prev_state = self.state # Salva de onde o jogador veio
+                            self.state = "ACHIEVEMENTS"
+                        # Se já estiver na tela de conquistas, volta de onde veio
+                        elif self.state == "ACHIEVEMENTS":
+                            self.state = self.prev_state
                 
                 if event.key == pygame.K_ESCAPE:
+                    if self.state == "ACHIEVEMENTS":
+                        self.state = self.prev_state
                     if self.show_help:
                         self.show_help = False
                         continue
