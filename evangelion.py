@@ -116,6 +116,7 @@ TEXTS = {
         "save_cancel": "ACTION CANCELED.",
         "save_final": "SYSTEM: GAME SAVED. CLOSING...",
         "slot_back": "(ESC) Back",
+        "log_achivement": "SYSTEM: Achievements progress reset.",
         "log_shop_enter": "SYSTEM: SHOP ACCESSED. Press a letter then an inventory number to swap.",
         "log_shop_inst": "SYSTEM: Trades left: {}.",
         "log_shop_swap": "SYSTEM: Swapped {} for {}!",
@@ -305,6 +306,7 @@ TEXTS = {
         "save_cancel": "AÇÃO CANCELADA.",
         "save_final": "SISTEMA: JOGO SALVO. FECHANDO...",
         "slot_back": "(ESC) Voltar",
+        "log_achivement": "SISTEMA: Progresso de conquistas apagado.",
         "log_shop_enter": "SISTEMA: LOJA ACESSADA. Pressione uma letra e depois um número do inventário para trocar.",
         "log_shop_inst": "SISTEMA: Trocas restantes: {}.",
         "log_shop_swap": "SISTEMA: Você trocou {} por {}!",
@@ -1009,7 +1011,7 @@ class Game:
         self.player_faith = 0
         
         # --- SISTEMA DE CONQUISTAS ---
-        self.unlocked_achievements = set() # Guarda IDs já conquistados
+        self.load_achievements() # Guarda IDs já conquistados
         self.active_achievements = []    # Guarda o ID da conquista sendo exibida
         self.achievement_timer = 0         # Temporizador do popup
         
@@ -1021,10 +1023,46 @@ class Game:
             return text.format(*args)
         return text
 
+    def load_achievements(self):
+        """Carrega as conquistas salvas de sessões anteriores."""
+        filename = "achievements.json"
+        self.unlocked_achievements = set() # Garante que inicie vazio
+        
+        if os.path.exists(filename):
+            try:
+                with open(filename, "r") as f:
+                    data = json.load(f)
+                    # Converte a lista do JSON de volta para um set
+                    self.unlocked_achievements = set(data.get("unlocked", []))
+            except Exception as e:
+                print(f"Erro ao carregar conquistas: {e}")
+
+    def save_achievements(self):
+        """Salva as conquistas atuais no arquivo JSON."""
+        filename = "achievements.json"
+        try:
+            with open(filename, "w") as f:
+                # Converte o set para lista antes de salvar
+                json.dump({"unlocked": list(self.unlocked_achievements)}, f)
+        except Exception as e:
+            print(f"Erro ao salvar conquistas: {e}")
+
+    def reset_achievements(self):
+        """Apaga o progresso de conquistas e deleta/limpa o arquivo."""
+        self.unlocked_achievements.clear()
+        self.save_achievements()
+        # Adiciona um feedback visual/sonoro
+        play_beep(300, 0.2)
+        self.add_log(self.t("log_achivement"))
+    
+    
     def unlock_achievement(self, achiv_id):
         # Verifica se já não foi desbloqueada antes
         if achiv_id not in self.unlocked_achievements:
             self.unlocked_achievements.add(achiv_id)
+            
+            # --- NOVO: Salva no arquivo ---
+            self.save_achievements()
             
             # Adiciona a conquista e o tempo atual na lista de ativos
             self.active_achievements.append({
@@ -1086,7 +1124,7 @@ class Game:
             self.virtual_surface.blit(desc_surf, (x, y + 30))
             
         # Instrução para voltar
-        back_str = "(ESC / A) VOLTAR" if self.language == "PT" else "(ESC / A) BACK"
+        back_str = "(ESC / A) VOLTAR  |  (DEL) APAGAR PROGRESSO" if self.language == "PT" else "(ESC / A) BACK  |  (DEL) RESET PROGRESS"
         back_surf = self.font.render(back_str, True, (255, 255, 255))
         self.virtual_surface.blit(back_surf, ((sw - back_surf.get_width()) // 2, sh - 80))
     
@@ -1101,7 +1139,8 @@ class Game:
         if not self.active_achievements:
             return
             
-        sw, sh = self.screen.get_size()
+        # CORREÇÃO: Usar as dimensões virtuais para manter a proporção e posicionamento corretos
+        sw, sh = SCREEN_WIDTH, SCREEN_HEIGHT
         
         # 2. Itera sobre todas as conquistas ativas para desenhá-las
         for index, achiv in enumerate(self.active_achievements):
@@ -1125,17 +1164,15 @@ class Game:
             popup_h = 80
             
             # 3. Lógica de Empilhamento (Offset)
-            # O popup mais antigo fica na base, os mais novos sobem (popup_h + 10 pixels de margem)
             stack_offset = index * (popup_h + 10)
             
-            # Posição: Canto inferior direito
+            # Posição: Canto inferior direito (agora referenciando o sw e sh virtuais)
             popup_x = sw - popup_w - 20
             popup_y = sh - popup_h - 20 - stack_offset
             
             # Animação de Fade out no último meio segundo (500ms)
             alpha = 255
             if elapsed_time > 4000:
-                # Corrigido o divisor para 500 para o fade ser suave de 255 a 0
                 alpha = int(255 * (4500 - elapsed_time) / 500) 
             
             # Cria a superfície do popup com suporte a transparência
@@ -1153,8 +1190,8 @@ class Game:
             popup_surf.blit(title_surf, (padding, 15))
             popup_surf.blit(text_surf, (padding, 45))
             
-            # Blita o popup na tela principal
-            self.screen.blit(popup_surf, (popup_x, popup_y))
+            # CORREÇÃO: Blita o popup na virtual_surface em vez da screen!
+            self.virtual_surface.blit(popup_surf, (popup_x, popup_y))
     
     def draw_help(self):
         # Usamos as dimensões fixas da superfície virtual (1500x980)
@@ -3413,6 +3450,10 @@ class Game:
                         # Se já estiver na tela de conquistas, volta de onde veio
                         elif self.state == "ACHIEVEMENTS":
                             self.state = self.prev_state
+                
+                if event.key == pygame.K_DELETE:
+                    if self.state == "ACHIEVEMENTS":
+                        self.reset_achievements()
                 
                 if event.key == pygame.K_ESCAPE:
                     if self.state == "ACHIEVEMENTS":
