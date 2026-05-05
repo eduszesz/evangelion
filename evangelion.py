@@ -111,6 +111,8 @@ TEXTS = {
         "opt_lang": "(T) Language: EN",
         "opt_resume": "(ESC) Resume Game",
         "opt_quit": "(Q) Quit",
+        "opt_words": "(W) Messages Sent",
+        "start_words": "(W) Messages Sent",
         "load_title": "CONTINUE GAME (Y/N)",
         "save_confirm": "SAVE AND QUIT? (Y/N)",
         "save_cancel": "ACTION CANCELED.",
@@ -301,6 +303,8 @@ TEXTS = {
         "opt_lang": "(T) Idioma: PT-BR",
         "opt_resume": "(ESC) Voltar ao Jogo",
         "opt_quit": "(Q) Sair",
+        "opt_words": "(W) Mensagens Enviadas",
+        "start_words": "(W) Mensagens Enviadas",
         "load_title": "CONTINUAR JOGO (Y/N)",
         "save_confirm": "SALVAR E SAIR? (Y/N)",
         "save_cancel": "AÇÃO CANCELADA.",
@@ -512,7 +516,7 @@ MENSAGENS_DB = {
 }
 
 # --- Base de Dados de Mensagens ---
-MENSAGENS_DB_BACKUP = {
+MENSAGENS_DB_SHOW = {
     1: {
         "PT": {"texto": "Como está escrito: “Não há nenhum justo, nem um sequer...”", "ref": "Rm 3:10"},
         "EN": {"texto": "As it is written: “There is no one righteous, not even one...”", "ref": "Rom 3:10"}
@@ -1075,58 +1079,69 @@ class Game:
             play_beep(800, 0.2)
     
     def draw_achievements(self):
-        # Use as dimensões fixas da virtual_surface em vez de screen.get_size()
-        sw, sh = SCREEN_WIDTH, SCREEN_HEIGHT 
+        # 1. Define a área de desenho do mapa, deixando 130px livres para o log
+        map_px_width = SCREEN_WIDTH
+        map_px_height = SCREEN_HEIGHT - 130
         
-        # Desenha na virtual_surface
-        self.virtual_surface.fill((15, 15, 20)) # Limpa o fundo
-        
-        # Título da tela
+        # 2. Cria o overlay padrão mantendo o mesmo estilo visual dos outros menus
+        overlay = pygame.Surface((map_px_width, map_px_height))
+        overlay.set_alpha(200) 
+        overlay.fill((0, 0, 0))
+        self.virtual_surface.blit(overlay, (0, 0))
+
+        center_x = map_px_width // 2
+
+        # 3. Título centralizado
         title_str = "CONQUISTAS" if self.language == "PT" else "ACHIEVEMENTS"
         title_surf = self.title_font.render(title_str, True, COLOR_PLAYER)
-        self.virtual_surface.blit(title_surf, ((sw - title_surf.get_width()) // 2, 50))
+        self.virtual_surface.blit(title_surf, (center_x - title_surf.get_width()//2, 80))
         
-        # Lista com os IDs das conquistas baseada no seu dicionário
+        # Lista de conquistas
         achievements_list = [
             "stun", "treasure", "steps", "break", "sender", "librarian", 
             "pacifist", "preacher", "graham", "caught", "win", "jail"
         ]
         
-        # Configurações de layout responsivo (2 colunas)
-        start_y = 150
-        col_width = min(sw // 2, 600) # Máximo de 600px por coluna para não ficar esticado
-        total_width = col_width * 2
-        start_x = (sw - total_width) // 2
+        # Configuração das duas colunas centralizadas
+        col_width = 500
+        start_x = center_x - col_width # Início da coluna esquerda
+        start_y = 180
         
         for i, achiv_id in enumerate(achievements_list):
-            # Verifica se o ID está no seu set de conquistas desbloqueadas
             is_unlocked = achiv_id in self.unlocked_achievements
             
-            # Define as cores: Amarelo se alcançada, Cinza se não
-            title_color = (255, 215, 0) if is_unlocked else (100, 100, 100)
+            # Cores padrão do jogo: Verde (COLOR_PLAYER) se ativo, Cinza se bloqueado
+            title_color = COLOR_ITEM if is_unlocked else (100, 100, 100)
             desc_color = (200, 200, 200) if is_unlocked else (60, 60, 60)
             
-            # Busca os textos no dicionário
             title_text = self.t(f"achiv_{achiv_id}")
             desc_text = self.t(f"achiv_{achiv_id}_text")
             
-            title_surf = self.font.render(title_text, True, title_color)
-            desc_surf = self.small_font.render(desc_text, True, desc_color)
+            # Esconde o texto de conquistas não alcançadas
+            if not is_unlocked:
+                title_text = "???"
+                desc_text = "???" if self.language == "PT" else "???"
             
-            # Calcula a posição da linha e coluna
+            t_surf = self.font.render(title_text, True, title_color)
+            d_surf = self.small_font.render(desc_text, True, desc_color)
+            
             col = i % 2
             row = i // 2
             
-            x = start_x + (col * col_width) + 20 # 20px de padding interno
-            y = start_y + (row * 80)
+            # Posição calculada com um padding de 40px para não encostar no centro
+            pos_x = start_x + (col * col_width) + 40 
+            pos_y = start_y + (row * 85)
             
-            self.virtual_surface.blit(title_surf, (x, y))
-            self.virtual_surface.blit(desc_surf, (x, y + 30))
-            
-        # Instrução para voltar
-        back_str = "(ESC / A) VOLTAR  |  (DEL) APAGAR PROGRESSO" if self.language == "PT" else "(ESC / A) BACK  |  (DEL) RESET PROGRESS"
-        back_surf = self.font.render(back_str, True, (255, 255, 255))
-        self.virtual_surface.blit(back_surf, ((sw - back_surf.get_width()) // 2, sh - 80))
+            self.virtual_surface.blit(t_surf, (pos_x, pos_y))
+            self.virtual_surface.blit(d_surf, (pos_x, pos_y + 30))
+
+        # 4. Rodapé de comandos (posicionado pouco antes de a área do log começar)
+        back_str = "(ESC/A) VOLTAR  |  (DEL) APAGAR PROGRESSO" if self.language == "PT" else "(ESC/A) BACK  |  (DEL) RESET PROGRESS"
+        back_surf = self.font.render(back_str, True, (150, 150, 150))
+        self.virtual_surface.blit(back_surf, (center_x - back_surf.get_width()//2, map_px_height - 60))
+
+        # 5. O SEGREDO: Chama o próprio método de Log do jogo para preencher os últimos 130 pixels
+        self.draw_log()
     
     
     def draw_achievement_popup(self):
@@ -1192,6 +1207,52 @@ class Game:
             
             # CORREÇÃO: Blita o popup na virtual_surface em vez da screen!
             self.virtual_surface.blit(popup_surf, (popup_x, popup_y))
+    
+    def draw_messages(self):
+        # 1. Define a área de desenho do mapa, deixando 130px livres para o log
+        map_px_width = SCREEN_WIDTH
+        map_px_height = SCREEN_HEIGHT #- 130
+        
+        # 2. Cria o overlay padrão mantendo o mesmo estilo visual dos outros menus
+        overlay = pygame.Surface((map_px_width, map_px_height))
+        overlay.set_alpha(200) 
+        overlay.fill((0, 0, 0))
+        self.virtual_surface.blit(overlay, (0, 0))
+
+        center_x = map_px_width // 2
+
+        # 3. Título centralizado
+        title_str = "MENSAGENS" if self.language == "PT" else "MESSAGES"
+        title_surf = self.title_font.render(title_str, True, COLOR_PLAYER)
+        self.virtual_surface.blit(title_surf, (center_x - title_surf.get_width()//2, 80))
+        
+        # --- NOVO: Lógica para exibir as 12 mensagens ---
+        start_y = 180  # Posição vertical inicial
+        line_spacing = 55 # Espaço entre cada mensagem
+        
+        for i in range(1, 13):
+            # Obtém a mensagem com base no ID e Idioma
+            msg_data = MENSAGENS_DB_SHOW[i][self.language]
+            texto = msg_data["texto"]
+            referencia = msg_data["ref"]
+            
+            # Formatação: "01. Texto da Mensagem (Referência)"
+            full_text = f"{i:02d}. {texto} ({referencia})"
+            
+            # Renderiza o texto (usando a fonte pequena para caber na tela)
+            # A cor muda levemente para as mensagens pares para melhorar a leitura
+            text_color = (255, 255, 255) if i % 2 == 0 else (200, 200, 200)
+            
+            msg_surf = self.small_font.render(full_text, True, text_color)
+            
+            # Desenha centralizado horizontalmente
+            self.virtual_surface.blit(msg_surf, (center_x - msg_surf.get_width()//2, start_y + (i-1) * line_spacing))
+
+        # 4. Rodapé de comandos (posicionado pouco antes de a área do log começar)
+        back_str = "(ESC) VOLTAR" if self.language == "PT" else "(ESC) BACK"
+        back_surf = self.font.render(back_str, True, (150, 150, 150))
+        self.virtual_surface.blit(back_surf, (center_x - back_surf.get_width()//2, map_px_height - 60))
+
     
     def draw_help(self):
         # Usamos as dimensões fixas da superfície virtual (1500x980)
@@ -2865,6 +2926,8 @@ class Game:
         
         if self.state == "ACHIEVEMENTS":
             self.draw_achievements()
+        elif self.state == "MESSAGES":
+            self.draw_messages()
         elif self.state == "START":
             txt = self.title_font.render("εv@ngεlion", True, COLOR_PLAYER)
             self.virtual_surface.blit(txt, (SCREEN_WIDTH//2 - txt.get_width()//2, 300))
@@ -2878,6 +2941,7 @@ class Game:
                 self.t("start_music", music_txt),
                 self.t("start_lang"),
                 self.t("start_achiv"),
+                self.t("start_words"),
                 self.t("start_help"),
                 self.t("start_quit")
             ]
@@ -3343,6 +3407,7 @@ class Game:
                     self.t("opt_achiv"),
                     self.t("opt_lang"),
                     self.t("opt_help"),
+                    self.t("opt_words"),
                     self.t("opt_resume"),
                     self.t("opt_quit")
                 ]
@@ -3451,12 +3516,23 @@ class Game:
                         elif self.state == "ACHIEVEMENTS":
                             self.state = self.prev_state
                 
+                if event.key == pygame.K_w:
+                        # Se estiver no menu principal ou no menu de pausa, vai para conquistas
+                        if self.state in ["START", "MENU"]:
+                            self.prev_state = self.state # Salva de onde o jogador veio
+                            self.state = "MESSAGES"
+                        # Se já estiver na tela de conquistas, volta de onde veio
+                        elif self.state == "MESSAGES":
+                            self.state = self.prev_state
+                            
                 if event.key == pygame.K_DELETE:
                     if self.state == "ACHIEVEMENTS":
                         self.reset_achievements()
                 
                 if event.key == pygame.K_ESCAPE:
                     if self.state == "ACHIEVEMENTS":
+                        self.state = self.prev_state
+                    if self.state == "MESSAGES":
                         self.state = self.prev_state
                     if self.show_help:
                         self.show_help = False
