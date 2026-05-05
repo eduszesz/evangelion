@@ -1118,7 +1118,7 @@ class Game:
             desc_text = self.t(f"achiv_{achiv_id}_text")
             
             # Esconde o texto de conquistas não alcançadas
-            if not is_unlocked:
+            if len(self.unlocked_achievements) == 0:
                 title_text = "???"
                 desc_text = "???" if self.language == "PT" else "???"
             
