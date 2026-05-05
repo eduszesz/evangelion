@@ -988,6 +988,7 @@ class Game:
         self.caught_start_time = 0 
                
         self.font = pygame.font.SysFont('Consolas', FONT_SIZE, bold=True)
+        self.m_font = pygame.font.SysFont('Consolas', 20, bold=True)
         self.small_font = pygame.font.SysFont('Consolas', 16, bold=True) 
         self.title_font = pygame.font.SysFont('Consolas', 50, bold=True)
         
@@ -1002,7 +1003,7 @@ class Game:
         
         self.player_faith = 0
         
-        
+        self.stats_messages_sent = 0
         self.generate_level()
         self.move_cooldown = 0
         self.update_music()
@@ -1230,26 +1231,29 @@ class Game:
         start_y = 180  # Posição vertical inicial
         line_spacing = 55 # Espaço entre cada mensagem
         
+        message_range = self.stats_messages_sent +1
         for i in range(1, 13):
             # Obtém a mensagem com base no ID e Idioma
             msg_data = MENSAGENS_DB_SHOW[i][self.language]
             texto = msg_data["texto"]
             referencia = msg_data["ref"]
-            
-            # Formatação: "01. Texto da Mensagem (Referência)"
-            full_text = f"{i:02d}. {texto} ({referencia})"
+            if i <= self.stats_messages_sent:
+                # Formatação: "01. Texto da Mensagem (Referência)"
+                full_text = f"{i:02d}. {texto} ({referencia})"
+            else:
+                full_text = "???"
             
             # Renderiza o texto (usando a fonte pequena para caber na tela)
             # A cor muda levemente para as mensagens pares para melhorar a leitura
             text_color = (255, 255, 255) if i % 2 == 0 else (200, 200, 200)
             
-            msg_surf = self.small_font.render(full_text, True, text_color)
+            msg_surf = self.m_font.render(full_text, True, text_color)
             
             # Desenha centralizado horizontalmente
             self.virtual_surface.blit(msg_surf, (center_x - msg_surf.get_width()//2, start_y + (i-1) * line_spacing))
 
         # 4. Rodapé de comandos (posicionado pouco antes de a área do log começar)
-        back_str = "(ESC) VOLTAR" if self.language == "PT" else "(ESC) BACK"
+        back_str = "(ESC / W) VOLTAR" if self.language == "PT" else "(ESC / W) BACK"
         back_surf = self.font.render(back_str, True, (150, 150, 150))
         self.virtual_surface.blit(back_surf, (center_x - back_surf.get_width()//2, map_px_height - 60))
 
