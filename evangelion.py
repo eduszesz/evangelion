@@ -717,12 +717,13 @@ class Eng(Entity):
                 self.dir_x, self.dir_y = random.choice([(0, 1), (0, -1), (1, 0), (-1, 0)])
         return None
 
-class Guard(Entity):
+class Guard(Entity): #verificar como criar guardas com atributo elite = True
     def __init__(self, x, y):
         super().__init__(x, y)
         self.dir_x, self.dir_y = random.choice([(0, 1), (0, -1), (1, 0), (-1, 0)])
         self.suspicion = 0
-        self.hacked = False 
+        self.hacked = False
+        self.elite = False
 
     def get_char(self):
         if self.stun_timer > 0: return 'z'
@@ -2071,8 +2072,8 @@ class Game:
                 if random.random() < (conf["chance_base"] + self.level * conf["escala_nivel"]): 
                     self.drones.append(Drone(cx, cy))
 
-            #if self.level >= 1 and self.level % 2 == 0: # Normal = level 6
-            if self.level == 1: #debug
+            if self.level >= 6 and self.level % 2 == 0: # Normal = level 6
+            #if self.level == 1: #debug
                 if len(self.engs) == 0:
                     for _ in range(50): # Tenta achar um lugar livre
                         rx, ry = random.randint(1, MAP_WIDTH-2), random.randint(1, MAP_HEIGHT-2)
