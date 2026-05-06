@@ -51,6 +51,7 @@ COLOR_SHOP = (255, 215, 0) # Dourado para a loja
 COLOR_SHADOW = (40, 45, 55)
 COLOR_DARK_WALL = (60, 65, 75)
 
+
 # Tiles
 TILE_WALL, TILE_FLOOR = '#', '.'
 TILE_SECRET_DOOR = "%"
@@ -250,6 +251,7 @@ TEXTS = {
         "help_interact": "INTERACT: Move into Terminals, Shops, and Panels",
         "help_shadow": "HIDE STUNNED ENEMIES: shift+arrow keys pull, arrow keys push",
         "log_body_seen": "ALERT: UNCONSCIOUS PERSONNEL SPOTTED!",
+        "log_mEMP_seen": "ALERT: TRAP DETECTED - INTRUDER ALERT!",
         "achiv_stun": "Stunned!",
         "achiv_stun_text": "You stunned an enemy for the first time",
         "achiv_treasure": "Treasure hunter",
@@ -447,6 +449,7 @@ TEXTS = {
         "help_interact": "INTERAÇÃO: Ande na direção de Terminais, Lojas e Painéis",
         "help_shadow": "ESCONDA INIMIGOS ATORDOADOS: Shift + setas para puxar, setas para empurrar",
         "log_body_seen": "ALERTA: PESSOA INCONSCIENTE - SUSPEITA DE INTRUSO!",
+        "log_mEMP_seen": "ALERTA: ARMADILHA DETECTADA - SUSPEITA DE INTRUSO!",
         "achiv_stun": "Atordoado!!",
         "achiv_stun_text": "Você atordoou um inimigo pela primeira vez",
         "achiv_treasure": "Caçador de tesouros",
@@ -2068,7 +2071,8 @@ class Game:
                 if random.random() < (conf["chance_base"] + self.level * conf["escala_nivel"]): 
                     self.drones.append(Drone(cx, cy))
 
-            if self.level >= 6 and self.level % 2 == 0: #normal será level 6
+            #if self.level >= 1 and self.level % 2 == 0: # Normal = level 6
+            if self.level == 1: #debug
                 if len(self.engs) == 0:
                     for _ in range(50): # Tenta achar um lugar livre
                         rx, ry = random.randint(1, MAP_WIDTH-2), random.randint(1, MAP_HEIGHT-2)
@@ -2723,6 +2727,26 @@ class Game:
                         if self.dark_turns > 0 and not is_alarm and e.stun_timer <= 0:
                             self.chase = True
                             path = self.get_path_to_panel(e.x, e.y)
+                    # mEMP interaction
+                    for m in self.mEMPs:
+                        if math.hypot(e.x - m.x, e.y - m.y) < 1.5:
+                            self.mEMPs.remove(m)
+                            self.add_log(self.t("log_mEMP_act"))
+                            play_beep(300, 0.2)
+                            for e in self.guards + self.cameras + self.drones + self.dogs + self.engs:
+                                if self.visible[e.y][e.x]:
+                                    if hasattr(e, "hacked") and e.hacked:
+                                        pass
+                                    else:
+                                        self.active_waves.append({"x": m.x, "y": m.y, "r": 0, "max_r": 8, "color": (0, 255, 255)})
+                                        e.stun_timer = 25
+                                        self.player_heat +=1
+                                        self.stats_npcs_stunned += 1
+                                        self.add_log(self.t("log_emp"))
+                                        # --- DISPARA A CONQUISTA AQUI ---
+                                        if self.stats_npcs_stunned == 1:
+                                            self.unlock_achievement("stun")
+                            
                     
                     status = e.move(self.map_data, self.player_x, self.player_y, self.chase, path, occupied)
                     
@@ -2756,8 +2780,36 @@ class Game:
 
                     # 4. Movimento de Patrulha (passa chase=False pois ele não persegue o jogador)
                     status = e.move(self.map_data, self.player_x, self.player_y, False, target_path, occupied)
-                
-                
+                    
+                    # 5. Desativa mEMP
+                    for m in self.mEMPs:
+                        if math.hypot(e.x - m.x, e.y - m.y) < 1.5:
+                            if (m.x, m.y) in e.vision_tiles:
+                                self.mEMPs.remove(m)
+                                self.add_log(self.t("log_mEMP_destroy"))
+                                play_beep(500, 0.2)
+                                self.player_heat += 1
+                                if random.random() < 0.5 and self.alarm_timer <=0:
+                                    self.add_log(self.t("log_mEMP_seen"))
+                                    self.alarm_timer = max(self.alarm_timer, heat)
+                            else:
+                                self.mEMPs.remove(m)
+                                self.add_log(self.t("log_mEMP_act"))
+                                play_beep(300, 0.2)
+                                for e in self.guards + self.cameras + self.drones + self.dogs + self.engs:
+                                    if self.visible[e.y][e.x]:
+                                        if hasattr(e, "hacked") and e.hacked:
+                                            pass
+                                        else:
+                                            self.active_waves.append({"x": m.x, "y": m.y, "r": 0, "max_r": 8, "color": (0, 255, 255)})
+                                            e.stun_timer = 25
+                                            self.player_heat +=1
+                                            self.stats_npcs_stunned += 1
+                                            self.add_log(self.t("log_emp"))
+                                            # --- DISPARA A CONQUISTA AQUI ---
+                                            if self.stats_npcs_stunned == 1:
+                                                self.unlock_achievement("stun")
+                    
                 elif isinstance(e, Drone):
                     status = e.move(self.map_data, self.player_x, self.player_y, occupied)
                     if status == "CAUGHT":
@@ -3165,6 +3217,16 @@ class Game:
                 wave["r"] += 0.5 
                 if wave["r"] > wave["max_r"]:
                     self.active_waves.remove(wave)
+            
+            # Desenha mEMPs
+            for m in getattr(self, 'mEMPs', []):
+                if self.visible[m.y][m.x]:
+                    color = COLOR_PLAYER
+                    # --- NOVO: Escurece o mEMP se estiver na sombra ---
+                    if self.map_data[m.y][m.x] == TILE_SHADOW:
+                        color = (color[0]//3, color[1]//3, color[2]//3)
+                    # ---------------------------------------------------
+                    self.virtual_surface.blit(self.font.render(TILE_mEMP, True, color), (m.x*TILE_WIDTH, m.y*TILE_HEIGHT))
             
             # Desenha os Decoys
             for d in getattr(self, 'decoys', []):
