@@ -27,6 +27,7 @@ COLOR_WALL = (160, 170, 180)
 COLOR_FLOOR = (90, 95, 100)       
 COLOR_PLAYER = (0, 255, 128)      
 COLOR_GUARD = (255, 80, 80)       
+COLOR_GUARD_ELITE = (255, 0, 0)       
 COLOR_DRONE = (0, 220, 255)       
 COLOR_CAMERA = (220, 120, 255)    
 COLOR_LASER_ON = (255, 50, 50)    
@@ -69,6 +70,7 @@ TILE_PANEL = "&"
 TILE_DECOY = chr(0x0394) #delta
 TILE_SHOP = '$'
 TILE_SHADOW = '_'
+TILE_mEMP = chr(956) #greek letter mu
 
 SOUND_CACHE = {}
 LAST_BEEP_T = 0
@@ -172,10 +174,14 @@ TEXTS = {
         "log_decoy_drop": "DECOY PLANTED! ACTIVATES IN 7 TURNS.",
         "log_decoy_act": "DECOY ACTIVE! GUARDS DISTRACTED!",
         "log_decoy_destroy": "DECOY DESTROYED!",
+        "log_mEMP_drop": "mEMP PLANTED!",
+        "log_mEMP_act": "mEMP DETONATED!",
+        "log_mEMP_destroy": "mEMP DESACTIVATED!",
         "desc_EMP": "EMP: Electromagnetic pulse that stuns guards and dogs, and interferes with cameras and drones.",
         "desc_KIT": "KIT: Antidote kit against paralyzing and hallucinogenic toxins.",
         "desc_INV": "INV: Smoke bomb that prevents enemies from seeing you.",
         "desc_HACK": "HACK: Disposable device to hack drones and cameras.",
+        "desc_mEMP": "mEMP: Electromagnetic pulse mines. Engineers can disable it",
         "help_use": "[1-9] Use item",
         "help_info": "[Shift + 1-9] Item info",
         # --- ALLY TEXTS EN ---
@@ -236,6 +242,7 @@ TEXTS = {
         "help_close": "(ESC / H): Close Help",
         "help_tip": "TIP: Side or rear strikes stun the guards.",
         "help_pray": "[P]: Convert guards and enginners",
+        "help_up_down": "[PAGE UP/PAGE DOWN]: Navegate log register",
         "start_help": "(H) HELP",
         "opt_help": "(H) Help",
         "help_mouse": "[MOUSE CLICK]: Auto-move to explored area",
@@ -360,6 +367,7 @@ TEXTS = {
         "desc_KIT": "KIT: Kit de antídotos contra toxinas paralisantes e alucinógenas.",
         "desc_INV": "INV: Bomba de fumaça que impede que inimigos te vejam.",
         "desc_HACK": "HACK: Dispositivo descartável para hackear drones e câmeras.",
+        "desc_mEMP": "mEMP: Mina de Pulso eletromagnético. Engenheiros podem desativá-las",
         "help_use": "[1-9] Usar item",
         "help_info": "[Shift + 1-9] Detalhes",
         # --- ALLY TEXTS PT ---
@@ -376,6 +384,9 @@ TEXTS = {
         "log_decoy_drop": "ISCA PLANTADA! ATIVANDO EM 7 TURNOS.",
         "log_decoy_act": "ISCA ATIVA! GUARDAS DISTRAÍDOS!",
         "log_decoy_destroy": "ISCA DESTRUÍDA!",
+        "log_mEMP_drop": "mEMP PLANTADA!",
+        "log_mEMP_act": "mEMP DETONADA!",
+        "log_mEMP_destroy": "mEMP DESATIVADA!",
         "log_move_explore": "Área desconhecida! Explore primeiro.",
         "log_move_init": "Movimento automático iniciado.",
         "log_move_error": "Caminho bloqueado ou inacessível.",
@@ -428,6 +439,7 @@ TEXTS = {
         "help_close": "(ESC / H): Fechar Help",
         "help_tip": "DICA: Atordoe guardas batendo pelos lados ou por trás.",
         "help_pray": "[P]: Converte guardas e engenheiros",
+        "help_up_down": "[PAGE UP/PAGE DOWN]: Navega o registro do log",
         "start_help": "(H) AJUDA",
         "opt_help": "(H) Ajuda",
         "help_mouse": "[CLIQUE DO MOUSE]: Mover automaticamente",
@@ -646,6 +658,10 @@ class Decoy(Entity):
         super().__init__(x, y)
         self.timer = 9
         self.active = False
+
+class mEMP(Entity):
+    def __init__(self, x, y):
+        super().__init__(x, y)
 
 class Eng(Entity):
     def __init__(self, x, y):
@@ -994,7 +1010,7 @@ class Game:
         
         self.clock = pygame.time.Clock()
         self.state = "START"
-        self.level, self.inventory = 1, ["EMP", "KIT", "DECOY"]
+        self.level, self.inventory = 1, ["EMP", "KIT", "mEMP"]
         self.has_the_book = False
         self.worlds = {}
         
@@ -1289,6 +1305,7 @@ class Game:
             ("help_pray", (255, 255, 255), False),
             ("help_interact", (255, 255, 255), False),
             ("help_shadow", (255, 255, 255), False),
+            ("help_up_down", (255, 255, 255), False),
             ("", None, False),
             ("help_tip", (180, 180, 180), False),
             ("", None, False),
@@ -1336,6 +1353,7 @@ class Game:
             "dark": self.dark_turns,
             "n_guards": self.number_guards,
             "decoys": self.decoys,
+            "mEMPs": self.mEMPs,
             "shop_visited": self.shop_visited,
             "shop_trades_left": self.shop_trades_left,
             "shop_inventory": getattr(self, 'shop_inventory', []),
@@ -1484,6 +1502,7 @@ class Game:
                 "lasers": [{"x": l.x, "y": l.y, "is_vertical_beam": l.is_vertical_beam, "offset": l.offset} for l in data.get("lasers", [])],
                 "allies": [{"x": a.x, "y": a.y, "is_free": a.is_free, "door_hits": a.door_hits, "escaped": a.escaped, "bars": a.bars} for a in data.get("allies", [])],
                 "decoys": [{"x": d.x, "y": d.y, "timer": d.timer, "active": d.active} for d in data.get("decoys", [])],
+                "mEMPs": [{"x": d.x, "y": d.y} for m in data.get("mEMPs", [])],                
                 "tiles": [{"x": t.x, "y": t.y, "name":t.__class__.__name__} for t in data.get("tiles", [])],
                 "player_heat": data.get("player_heat", 0),
                 "dark": data.get("dark", 0),
@@ -1636,6 +1655,11 @@ class Game:
                     new_dec.active = dec.get("active", False)
                     decoys.append(new_dec)
                 
+                mEMPs = []
+                for m in lvl_data.get("mEMPs", []):
+                    new_m = mEMP(m["x"], m["y"])
+                    mEMPs.append(new_m)
+                
                 
                 tiles=[]
                 for t in lvl_data.get("tiles", []):
@@ -1684,6 +1708,7 @@ class Game:
                     "dark": lvl_data.get("dark", 0),
                     "n_guards": lvl_data.get("n_guards",0),
                     "decoys": decoys,
+                    "mEMPs": mEMPs,
                     "shop_visited": lvl_data.get("shop_visited"),
                     "shop_trades_left": lvl_data.get("shop_trades_left",0),
                     "shop_inventory": lvl_data.get("shop_inventory", []),
@@ -1762,7 +1787,7 @@ class Game:
         return f"{minutes:02d}:{seconds:02d}"
 
     def reset_game_stats(self):
-        self.level, self.inventory = 1, ["EMP", "KIT", "DECOY"]
+        self.level, self.inventory = 1, ["EMP", "KIT", "mEMP"]
         self.total_turns = 0
         self.accumulated_time = 0
         self.game_start_time = pygame.time.get_ticks()
@@ -1884,7 +1909,7 @@ class Game:
         self.player_pray = 0
         self.terminal_hacked, self.hack_progress = False, 0
         self.message_found = False 
-        self.guards, self.cameras, self.drones, self.lasers, self.dogs, self.allies, self.tiles, self.decoys, self.engs = [], [], [], [], [], [], [], [], []
+        self.guards, self.cameras, self.drones, self.lasers, self.dogs, self.allies, self.tiles, self.decoys, self.engs, self.mEMPs = [], [], [], [], [], [], [], [], [], []
         self.msg_timer, self.msg_text = 0, ""
         self.shop_visited = False
         self.shop_active = False
@@ -2133,8 +2158,13 @@ class Game:
         #if self.level == 1: #debug shop
         if self.level in (4, 8, 12) and random.random() < 0.7:
             # Pega uma sala aleatória que não seja a primeira
-            self.shop_trades_left = 2 if self.level < 8 else 3
-            items_pool = ["EMP", "KIT", "INV", "HACK", "DECOY"]
+            self.shop_trades_left = 2
+            if self.level < 8:
+                self.shop_trades_left = 2
+                items_pool = ["EMP", "KIT", "INV", "HACK", "DECOY"]
+            else:
+                self.shop_trades_left = 3
+                items_pool = ["EMP", "KIT", "INV", "HACK", "DECOY", "mEMP"]
             self.shop_inventory = [random.choice(items_pool) for _ in range(5)]
             if len(self.rooms) > 1:
                 shop_room = random.choice(self.rooms[1:])
@@ -2222,7 +2252,10 @@ class Game:
                 self.add_log(self.t("log_decoy_drop"))
                 play_beep(400, 0.1)
                 self.player_heat +=15
-            
+            elif item == "mEMP":
+                self.mEMPs.append(mEMP(self.player_x, self.player_y))
+                self.add_log(self.t("log_mEMP_drop"))
+                play_beep(400, 0.1)
             elif item == "HACK":
                 for e in self.drones + self.cameras:
                     if self.visible[e.y][e.x]:
@@ -2355,6 +2388,7 @@ class Game:
                     self.add_log(self.t("log_decoy_act"))
                     self.active_waves.append({"x": d.x, "y": d.y, "r": 0, "max_r": 8, "color": (255, 255, 0)})
                     play_beep(800, 0.3)
+        
         
         if self.msg_timer > 0: self.msg_timer -= 1
         for l in self.lasers: l.update(self.turn_count)
@@ -2545,7 +2579,10 @@ class Game:
 
 
                             if tile == TILE_ITEM:
-                                self.inventory.append(random.choice(["EMP", "KIT", "INV","HACK","EMP","INV","HACK", "DECOY"]))
+                                if self.level < 6:
+                                    self.inventory.append(random.choice(["EMP", "KIT", "INV","HACK","EMP","INV","HACK", "DECOY"]))
+                                else:
+                                    self.inventory.append(random.choice(["EMP", "KIT", "INV","HACK","EMP","INV","HACK", "DECOY", "mEMP"]))
                                 self.stats_items_collected += 1
                                 if self.stats_items_collected == 10:
                                     self.unlock_achievement("treasure")
@@ -2737,7 +2774,10 @@ class Game:
                     a.escaped = True
                     self.add_log(self.t("log_ally_escaped"))
                     if len(self.inventory) < MAX_INVENTORY:
-                        self.inventory.append(random.choice(["EMP", "KIT", "INV", "HACK", "DECOY"]))
+                        if self.level < 6:
+                            self.inventory.append(random.choice(["EMP", "KIT", "INV", "HACK", "DECOY"]))
+                        else:
+                            self.inventory.append(random.choice(["EMP", "KIT", "INV", "HACK", "DECOY", "mEMP"]))   
                         self.stats_items_collected += 1
                 else:
                     # Descobre a sala atual do aliado e a sala da escada
@@ -3555,7 +3595,7 @@ class Game:
                                 
                 if self.state == "START":
                     if event.key in (pygame.K_SPACE, pygame.K_n): 
-                        self.level, self.inventory = 1, ["EMP", "KIT", "DECOY"]
+                        self.level, self.inventory = 1, ["EMP", "KIT", "mEMP"]
                         self.generate_level()
                         self.reset_game_stats()
                         self.set_state("PLAYING")
@@ -3577,7 +3617,7 @@ class Game:
 
                 if self.state in ("GAMEOVER", "WIN"):
                     if event.key == pygame.K_SPACE:
-                        self.level, self.inventory = 1, ["EMP", "KIT", "DECOY"]
+                        self.level, self.inventory = 1, ["EMP", "KIT", "mEMP"]
                         self.generate_level()
                         self.reset_game_stats()
                         self.set_state("START")
@@ -3596,7 +3636,7 @@ class Game:
                         elif event.key == pygame.K_t: 
                             self.language = "PT" if self.language == "EN" else "EN"
                         elif event.key == pygame.K_r:
-                            self.level, self.inventory = 1, ["EMP", "KIT", "DECOY"]
+                            self.level, self.inventory = 1, ["EMP", "KIT", "mEMP"]
                             self.generate_level()
                             self.reset_game_stats()
                             self.message_log = []
