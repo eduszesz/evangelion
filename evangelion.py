@@ -14,7 +14,7 @@ TILE_WIDTH, TILE_HEIGHT = 20, 30
 MAP_WIDTH = (SCREEN_WIDTH - 300) // TILE_WIDTH 
 MAP_HEIGHT = (SCREEN_HEIGHT-130 )// TILE_HEIGHT
 MAX_INVENTORY = 9
-FINAL_LEVEL = 12
+FINAL_LEVEL = 2 # 12 debug
 
 #For debug: jogador invensivel
 INVENSIVEL = False
@@ -27,7 +27,7 @@ COLOR_WALL = (160, 170, 180)
 COLOR_FLOOR = (90, 95, 100)       
 COLOR_PLAYER = (0, 255, 128)      
 COLOR_GUARD = (255, 80, 80)       
-COLOR_GUARD_ELITE = (255, 0, 0)       
+COLOR_GUARD_ELITE = (80, 255, 255)       
 COLOR_DRONE = (0, 220, 255)       
 COLOR_CAMERA = (220, 120, 255)    
 COLOR_LASER_ON = (255, 50, 50)    
@@ -71,7 +71,7 @@ TILE_PANEL = "&"
 TILE_DECOY = chr(0x0394) #delta
 TILE_SHOP = '$'
 TILE_SHADOW = '_'
-TILE_mEMP = chr(956) #greek letter mu
+TILE_mEMP = chr(956) # greek letter mu
 
 SOUND_CACHE = {}
 LAST_BEEP_T = 0
@@ -718,12 +718,12 @@ class Eng(Entity):
         return None
 
 class Guard(Entity): #verificar como criar guardas com atributo elite = True
-    def __init__(self, x, y):
+    def __init__(self, x, y, elite):
         super().__init__(x, y)
         self.dir_x, self.dir_y = random.choice([(0, 1), (0, -1), (1, 0), (-1, 0)])
         self.suspicion = 0
         self.hacked = False
-        self.elite = False
+        self.elite = True
 
     def get_char(self):
         if self.stun_timer > 0: return 'z'
@@ -1498,7 +1498,7 @@ class Game:
                 "exit_y": data["exit_y"],
                 "panel_x": data["panel_x"],
                 "panel_y": data["panel_y"],
-                "guards": [{"x": g.x, "y": g.y, "dx": g.dir_x, "dy": g.dir_y, "stun_timer": g.stun_timer} for g in data["guards"]],
+                "guards": [{"x": g.x, "y": g.y, "dx": g.dir_x, "dy": g.dir_y, "stun_timer": g.stun_timer, "elite":g.elite} for g in data["guards"]],
                 "eng": [{"x": e.x, "y": e.y, "dx": e.dir_x, "dy": e.dir_y, "stun_timer": e.stun_timer} for e in data["eng"]],
                 "dogs": [{"x": d.x, "y": d.y, "dx": d.dir_x, "dy": d.dir_y, "stun_timer": d.stun_timer} for d in data["dogs"]],
                 "drones": [{"x": dr.x, "y": dr.y, "dx": dr.dir_x, "dy": dr.dir_y, "stun_timer": dr.stun_timer, "hacked": dr.hacked} for dr in data["drones"]],
@@ -1607,6 +1607,7 @@ class Game:
                     new_g = Guard(g["x"], g["y"])
                     new_g.dir_x, new_g.dir_y = g["dx"], g["dy"]
                     new_g.stun_timer = g.get("stun_timer", 0)
+                    new_g.elite = g.get("elite", False)
                     guards.append(new_g)
 
                 engs = []
@@ -1899,7 +1900,7 @@ class Game:
                 # Ignora as posições se estiverem ocupadas pelo aliado ou grades
                 if self.map_data[cy][cx] in [TILE_BARS_1, TILE_BARS_2, TILE_PRISON]: continue
 
-                if len(self.guards) < (2*n_guards): self.guards.append(Guard(cx, cy))
+                if len(self.guards) < (2*n_guards): self.guards.append(Guard(cx, cy, True))
                 
     
     def generate_level(self):
@@ -2055,8 +2056,8 @@ class Game:
             conf = NPC_CONFIG["guard"]
             if self.level >= conf["nivel_min"] and len(self.guards) + len(self.dogs) + len(self.drones) < max_mobile_enemies:
                 if random.random() < (conf["chance_base"] + self.level * conf["escala_nivel"]): 
-                    self.guards.append(Guard(cx, cy))
-            if len(self.guards) <= 1: self.guards.append(Guard(cx, cy))
+                    self.guards.append(Guard(cx, cy, False))
+            if len(self.guards) <= 1: self.guards.append(Guard(cx, cy, False))
 
             self.number_guards = len(self.guards)    
             
@@ -2224,7 +2225,22 @@ class Game:
                 if r.x1 <= x <= r.x2 and r.y1 <= y <= r.y2:
                     return r
             return None       
-        
+    def use_EMP(self):
+        play_beep(300, 0.2)
+        for e in self.guards + self.cameras + self.drones + self.dogs + getattr(self, 'engs', []):
+            if self.visible[e.y][e.x]:
+                if hasattr(e, "hacked") and e.hacked:
+                    pass
+                else:
+                    self.active_waves.append({"x": self.player_x, "y": self.player_y, "r": 0, "max_r": 8, "color": (0, 255, 255)})
+                    e.stun_timer = 25
+                    self.player_heat +=1
+                    self.stats_npcs_stunned += 1
+                    self.add_log(self.t("log_emp"))
+                    # --- DISPARA A CONQUISTA AQUI ---
+                    if self.stats_npcs_stunned == 1:
+                        self.unlock_achievement("stun")
+    
     def use_item(self, idx):
         if idx < len(self.inventory):
             item = self.inventory.pop(idx)
@@ -3272,7 +3288,12 @@ class Game:
                     char, color = '?', (220, 220, 220)
                     if isinstance(e, Guard):
                         char = e.get_char()
-                        color = COLOR_PLAYER if e.hacked else COLOR_GUARD
+                        if e.hacked:
+                            color = COLOR_PLAYER
+                        elif e.elite:
+                            color = COLOR_GUARD_ELITE
+                        else:
+                            color = COLOR_GUARD
                     elif isinstance(e, Drone):
                         char = "d"
                         color = COLOR_PLAYER if e.hacked else COLOR_DRONE
@@ -3741,9 +3762,16 @@ class Game:
                     continue 
                 
                 if self.state == "PLAYING":
-                    
-                    #if event.key == pygame.K_f:
-                        #self.player_faith = 100
+                    # for debug ---------------------------------------
+                    if event.key == pygame.K_f:
+                        self.player_faith = 100
+                    if event.key == pygame.K_e:
+                        self.use_EMP()
+                    if event.key == pygame.K_b:
+                        self.has_the_book = True
+                    if event.key == pygame.K_g:
+                        self.generate_more_enemies()
+                    # --------------------------------------------------
                     # --- CONTROLE DA LOJA ---
                     if pygame.K_a <= event.key <= pygame.K_e and getattr(self, 'shop_active', False):
                         idx = event.key - pygame.K_a
