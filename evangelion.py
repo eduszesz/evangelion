@@ -14,7 +14,7 @@ TILE_WIDTH, TILE_HEIGHT = 20, 30
 MAP_WIDTH = (SCREEN_WIDTH - 300) // TILE_WIDTH 
 MAP_HEIGHT = (SCREEN_HEIGHT-130 )// TILE_HEIGHT
 MAX_INVENTORY = 9
-FINAL_LEVEL = 2 # 12 debug
+FINAL_LEVEL = 12 # 2 debug
 
 #For debug: jogador invensivel
 INVENSIVEL = False
@@ -27,7 +27,7 @@ COLOR_WALL = (160, 170, 180)
 COLOR_FLOOR = (90, 95, 100)       
 COLOR_PLAYER = (0, 255, 128)      
 COLOR_GUARD = (255, 80, 80)       
-COLOR_GUARD_ELITE = (80, 255, 255)       
+COLOR_GUARD_ELITE = (255, 0, 0)       
 COLOR_DRONE = (0, 220, 255)       
 COLOR_CAMERA = (220, 120, 255)    
 COLOR_LASER_ON = (255, 50, 50)    
@@ -178,6 +178,7 @@ TEXTS = {
         "log_mEMP_drop": "mEMP PLANTED!",
         "log_mEMP_act": "mEMP DETONATED!",
         "log_mEMP_destroy": "mEMP DESACTIVATED!",
+        "log_elite": "The elite guard resisted and was not stunned.",
         "desc_EMP": "EMP: Electromagnetic pulse that stuns guards and dogs, and interferes with cameras and drones.",
         "desc_KIT": "KIT: Antidote kit against paralyzing and hallucinogenic toxins.",
         "desc_INV": "INV: Smoke bomb that prevents enemies from seeing you.",
@@ -389,6 +390,7 @@ TEXTS = {
         "log_mEMP_drop": "mEMP PLANTADA!",
         "log_mEMP_act": "mEMP DETONADA!",
         "log_mEMP_destroy": "mEMP DESATIVADA!",
+        "log_elite": "O guarda de elite resistiu e não foi atordoado",
         "log_move_explore": "Área desconhecida! Explore primeiro.",
         "log_move_init": "Movimento automático iniciado.",
         "log_move_error": "Caminho bloqueado ou inacessível.",
@@ -718,12 +720,12 @@ class Eng(Entity):
         return None
 
 class Guard(Entity): #verificar como criar guardas com atributo elite = True
-    def __init__(self, x, y, elite):
+    def __init__(self, x, y, elite=False):
         super().__init__(x, y)
         self.dir_x, self.dir_y = random.choice([(0, 1), (0, -1), (1, 0), (-1, 0)])
         self.suspicion = 0
         self.hacked = False
-        self.elite = True
+        self.elite = elite
 
     def get_char(self):
         if self.stun_timer > 0: return 'z'
@@ -2225,40 +2227,44 @@ class Game:
                 if r.x1 <= x <= r.x2 and r.y1 <= y <= r.y2:
                     return r
             return None       
-    def use_EMP(self):
+    def use_EMP(self,is_mEMP=False, x=0, y=0):
+        self.is_mEMP=is_mEMP
         play_beep(300, 0.2)
         for e in self.guards + self.cameras + self.drones + self.dogs + getattr(self, 'engs', []):
-            if self.visible[e.y][e.x]:
-                if hasattr(e, "hacked") and e.hacked:
-                    pass
-                else:
-                    self.active_waves.append({"x": self.player_x, "y": self.player_y, "r": 0, "max_r": 8, "color": (0, 255, 255)})
-                    e.stun_timer = 25
-                    self.player_heat +=1
-                    self.stats_npcs_stunned += 1
-                    self.add_log(self.t("log_emp"))
-                    # --- DISPARA A CONQUISTA AQUI ---
-                    if self.stats_npcs_stunned == 1:
-                        self.unlock_achievement("stun")
+            if not is_mEMP:
+                if self.visible[e.y][e.x]:
+                    if hasattr(e, "hacked") and e.hacked:
+                        pass
+                    elif hasattr(e, "elite") and e.elite and random.random() < 0.7:
+                        self.add_log(self.t("log_elite"))
+                    else:
+                        self.active_waves.append({"x": x, "y": y, "r": 0, "max_r": 8, "color": (0, 255, 255)})
+                        e.stun_timer = 25
+                        self.player_heat +=1
+                        self.stats_npcs_stunned += 1
+                        self.add_log(self.t("log_emp"))
+                        # --- DISPARA A CONQUISTA AQUI ---
+                        if self.stats_npcs_stunned == 1:
+                            self.unlock_achievement("stun")
+            else:
+                if math.hypot(e.x - x, e.y - y) < 15:
+                    if hasattr(e, "hacked") and e.hacked:
+                        pass
+                    else:
+                        self.active_waves.append({"x": x, "y": y, "r": 0, "max_r": 8, "color": (0, 255, 255)})
+                        e.stun_timer = 25
+                        self.player_heat +=1
+                        self.stats_npcs_stunned += 1
+                        self.add_log(self.t("log_emp"))
+                        # --- DISPARA A CONQUISTA AQUI ---
+                        if self.stats_npcs_stunned == 1:
+                            self.unlock_achievement("stun")
     
     def use_item(self, idx):
         if idx < len(self.inventory):
             item = self.inventory.pop(idx)
             if item == "EMP":
-                play_beep(300, 0.2)
-                for e in self.guards + self.cameras + self.drones + self.dogs + getattr(self, 'engs', []):
-                    if self.visible[e.y][e.x]:
-                        if hasattr(e, "hacked") and e.hacked:
-                            pass
-                        else:
-                            self.active_waves.append({"x": self.player_x, "y": self.player_y, "r": 0, "max_r": 8, "color": (0, 255, 255)})
-                            e.stun_timer = 25
-                            self.player_heat +=1
-                            self.stats_npcs_stunned += 1
-                            self.add_log(self.t("log_emp"))
-                            # --- DISPARA A CONQUISTA AQUI ---
-                            if self.stats_npcs_stunned == 1:
-                                self.unlock_achievement("stun")
+                self.use_EMP(is_mEMP=False, x=self.player_x, y=self.player_y)
             elif item == "KIT": 
                 self.player_stun = 0; self.player_drunk = 0
                 self.add_log(self.t("log_kit"))
@@ -2292,26 +2298,30 @@ class Game:
         i=0
         for e in self.guards + getattr(self, 'engs', []):
                     if self.visible[e.y][e.x] and not e.hacked:
-                        
                         self.player_faith = 0
-                        chance = random.random()
-                        c_limit = (0.35+(self.level/100))*math.exp(-1.8*i)
-                        i+=1
-                        if chance <= c_limit:
-                            self.add_log(self.t("log_convert"))
-                            play_beep(300, 0.2)
-                            e.hacked = True
-                            e.suspicion = 0
-                            self.stats_guards_convert += 1
-                            if self.stats_guards_convert == 1:
-                                self.unlock_achievement("preacher")
-                            if self.stats_guards_convert == 5:
-                                self.unlock_achievement("graham")
-                            self.active_waves.append({"x": self.player_x, "y": self.player_y, "r": 0, "max_r": 5, "color": (0, 255, 100)})
-                        else:
+                        if hasattr(e, "elite") and e.elite:
                             self.add_log(self.t("log_resist"))
                             play_beep(150, 1)
                             play_beep(120, 1)
+                        else:
+                            chance = random.random()
+                            c_limit = (0.35+(self.level/100))*math.exp(-1.8*i)
+                            i+=1
+                            if chance <= c_limit:
+                                self.add_log(self.t("log_convert"))
+                                play_beep(300, 0.2)
+                                e.hacked = True
+                                e.suspicion = 0
+                                self.stats_guards_convert += 1
+                                if self.stats_guards_convert == 1:
+                                    self.unlock_achievement("preacher")
+                                if self.stats_guards_convert == 5:
+                                    self.unlock_achievement("graham")
+                                self.active_waves.append({"x": self.player_x, "y": self.player_y, "r": 0, "max_r": 5, "color": (0, 255, 100)})
+                            else:
+                                self.add_log(self.t("log_resist"))
+                                play_beep(150, 1)
+                                play_beep(120, 1)
         self.move_entities(0, 0)
 
 
@@ -2525,14 +2535,18 @@ class Game:
                                         can_stun = isinstance(enemy, (Dog, Eng)) or not is_head_on
                                        
                                         if can_stun:
-                                            enemy.stun_timer = 25; play_beep(150, 0.2)
-                                            self.add_log(self.t("log_emp"))
-                                            self.add_log(self.t("log_shadow"))
-                                            self.stats_npcs_stunned += 1
-                                            self.player_heat +=1
-                                            # --- DISPARA A CONQUISTA AQUI ---
-                                            if self.stats_npcs_stunned == 1:
-                                                self.unlock_achievement("stun")
+                                            if hasattr(enemy, "elite") and enemy.elite and random.random() < 0.7:
+                                                self.add_log(self.t("log_elite"))
+                                            else:
+                                                enemy.stun_timer = 25
+                                                play_beep(150, 0.2)
+                                                self.add_log(self.t("log_emp"))
+                                                self.add_log(self.t("log_shadow"))
+                                                self.stats_npcs_stunned += 1
+                                                self.player_heat +=1
+                                                # --- DISPARA A CONQUISTA AQUI ---
+                                                if self.stats_npcs_stunned == 1:
+                                                    self.unlock_achievement("stun")
                                         else: 
                                             self.trigger_caught(); return
                                 else:
@@ -2749,20 +2763,7 @@ class Game:
                         if math.hypot(e.x - m.x, e.y - m.y) < 1.5:
                             self.mEMPs.remove(m)
                             self.add_log(self.t("log_mEMP_act"))
-                            play_beep(300, 0.2)
-                            for e in self.guards + self.cameras + self.drones + self.dogs + self.engs:
-                                if self.visible[e.y][e.x]:
-                                    if hasattr(e, "hacked") and e.hacked:
-                                        pass
-                                    else:
-                                        self.active_waves.append({"x": m.x, "y": m.y, "r": 0, "max_r": 8, "color": (0, 255, 255)})
-                                        e.stun_timer = 25
-                                        self.player_heat +=1
-                                        self.stats_npcs_stunned += 1
-                                        self.add_log(self.t("log_emp"))
-                                        # --- DISPARA A CONQUISTA AQUI ---
-                                        if self.stats_npcs_stunned == 1:
-                                            self.unlock_achievement("stun")
+                            self.use_EMP(is_mEMP=True, x=m.x, y=m.y)
                             
                     
                     status = e.move(self.map_data, self.player_x, self.player_y, self.chase, path, occupied)
@@ -2812,20 +2813,7 @@ class Game:
                             else:
                                 self.mEMPs.remove(m)
                                 self.add_log(self.t("log_mEMP_act"))
-                                play_beep(300, 0.2)
-                                for e in self.guards + self.cameras + self.drones + self.dogs + self.engs:
-                                    if self.visible[e.y][e.x]:
-                                        if hasattr(e, "hacked") and e.hacked:
-                                            pass
-                                        else:
-                                            self.active_waves.append({"x": m.x, "y": m.y, "r": 0, "max_r": 8, "color": (0, 255, 255)})
-                                            e.stun_timer = 25
-                                            self.player_heat +=1
-                                            self.stats_npcs_stunned += 1
-                                            self.add_log(self.t("log_emp"))
-                                            # --- DISPARA A CONQUISTA AQUI ---
-                                            if self.stats_npcs_stunned == 1:
-                                                self.unlock_achievement("stun")
+                                self.use_EMP(is_mEMP=True, x=m.x, y=m.y)
                     
                 elif isinstance(e, Drone):
                     status = e.move(self.map_data, self.player_x, self.player_y, occupied)
@@ -3763,14 +3751,14 @@ class Game:
                 
                 if self.state == "PLAYING":
                     # for debug ---------------------------------------
-                    if event.key == pygame.K_f:
-                        self.player_faith = 100
-                    if event.key == pygame.K_e:
-                        self.use_EMP()
-                    if event.key == pygame.K_b:
-                        self.has_the_book = True
-                    if event.key == pygame.K_g:
-                        self.generate_more_enemies()
+                    #if event.key == pygame.K_f:
+                        #self.player_faith = 100
+                    #if event.key == pygame.K_e:
+                        #self.use_EMP(is_mEMP=False,x=self.player_x, y=self.player_y)
+                    #if event.key == pygame.K_b:
+                        #self.has_the_book = True
+                    #if event.key == pygame.K_g:
+                        #self.generate_more_enemies()
                     # --------------------------------------------------
                     # --- CONTROLE DA LOJA ---
                     if pygame.K_a <= event.key <= pygame.K_e and getattr(self, 'shop_active', False):
