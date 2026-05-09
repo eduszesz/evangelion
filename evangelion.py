@@ -992,7 +992,11 @@ class Game:
             pass
         
         pygame.display.set_caption("εv@ngεlion")
-                
+        
+        # --- Controle de Animação de Menu ---
+        self.pending_action = None
+        self.action_timer = 0
+        
         self.last_mouse_move_time = pygame.time.get_ticks()
         
         self.auto_path = []           # Armazena a lista de coordenadas até o destino
@@ -1016,7 +1020,7 @@ class Game:
         
         self.clock = pygame.time.Clock()
         self.state = "START"
-        self.level, self.inventory = 1, ["EMP", "KIT", "mEMP"]
+        self.level, self.inventory = 1, ["EMP", "KIT"]
         self.has_the_book = False
         self.worlds = {}
         
@@ -1334,6 +1338,64 @@ class Game:
             
             current_y += font_to_use.get_height() + 10
     
+    def execute_menu_action(self):
+        action = self.pending_action
+        self.pending_action = None
+        
+        if action == "NEW":
+            self.level, self.inventory = 1, ["EMP", "KIT"]
+            self.generate_level()
+            self.reset_game_stats()
+            self.set_state("PLAYING")
+            self.message_log = []
+            self.log_scroll = 0
+            self.reset_game_stats()
+        elif action == "LOAD":
+            self.origin_state = "START" 
+            self.state = "MENU_LOAD"
+        elif action == "MUSIC":
+            self.music_enabled = not self.music_enabled
+            self.update_music() 
+        elif action == "LANG":
+            self.language = "PT" if self.language == "EN" else "EN"
+        elif action == "ACHIV":
+            self.prev_state = self.state
+            self.state = "ACHIEVEMENTS"
+        elif action == "WORDS":
+            self.prev_state = self.state
+            self.state = "MESSAGES"
+        elif action == "HELP":
+            self.show_help = not self.show_help
+        elif action == "RESTART":
+            self.level, self.inventory = 1, ["EMP", "KIT"]
+            self.generate_level()
+            self.reset_game_stats()
+            self.message_log = []
+            self.log_scroll = 0
+            self.worlds = {}
+            self.has_the_book = False
+            self.player_faith = 0
+            self.add_log(self.t("log_intro1"))
+            self.add_log(self.t("log_intro2"))
+            self.add_log(self.t("log_intro3"))
+            self.set_state("PLAYING")
+        elif action == "SAVE":
+            self.state = "MENU_SAVE"
+        elif action == "RESUME":
+            self.set_state("PLAYING")
+        elif action == "BACK_TO_MENU":
+            self.state = "MENU"
+        elif action == "BACK_TO_START":
+            self.state = "START"
+        elif action == "CONFIRM_SAVE":
+            self.save_game()
+            self.state = "MENU"
+        elif action == "CONFIRM_LOAD":
+            self.load_game()
+            self.state = "PLAYING"
+        elif action == "QUIT":
+            pygame.quit()
+            sys.exit()
     
     def save_current_level(self):
         self.worlds[self.level] = {
@@ -1794,7 +1856,7 @@ class Game:
         return f"{minutes:02d}:{seconds:02d}"
 
     def reset_game_stats(self):
-        self.level, self.inventory = 1, ["EMP", "KIT", "mEMP"]
+        self.level, self.inventory = 1, ["EMP", "KIT"]
         self.total_turns = 0
         self.accumulated_time = 0
         self.game_start_time = pygame.time.get_ticks()
@@ -2026,8 +2088,8 @@ class Game:
         used_rooms = {0, idx_exit, idx_terminal, idx_msg, idx_bible}
         possible_ally_rooms = [i for i in range(len(rooms)) if i not in used_rooms]
         
-        if self.level % 3 == 0 and possible_ally_rooms and random.random() < 0.5:
-        #if self.level == 1 and possible_ally_rooms and random.random() < 1.0: #debug da prisão
+        #if self.level % 3 == 0 and possible_ally_rooms and random.random() < 0.5:
+        if self.level == 1 and possible_ally_rooms and random.random() < 1.0: #debug da prisão
             idx_ally = random.choice(possible_ally_rooms)
             ax, ay = rooms[idx_ally].center()
             ally = Ally(ax, ay)
@@ -3036,21 +3098,35 @@ class Game:
             self.virtual_surface.blit(sub, (SCREEN_WIDTH//2 - sub.get_width()//2, 400))
             
             music_txt = self.t("music_on") if self.music_enabled else self.t("music_off")
-            start_options = [
-                self.t("start_new"),
-                self.t("start_load"),
-                self.t("start_music", music_txt),
-                self.t("start_lang"),
-                self.t("start_achiv"),
-                self.t("start_words"),
-                self.t("start_help"),
-                self.t("start_quit")
-            ]
             
-            for i, text in enumerate(start_options):
+            # --- Verifica se há save para montar as opções ---
+            has_save = os.path.exists("savegame.json")
+            
+            start_options = [("NEW", self.t("start_new"))]
+            if has_save:
+                start_options.append(("LOAD", self.t("start_load")))
+                
+            start_options.extend([
+                ("MUSIC", self.t("start_music", music_txt)),
+                ("LANG", self.t("start_lang")),
+                ("ACHIV", self.t("start_achiv")),
+                ("WORDS", self.t("start_words")),
+                ("HELP", self.t("start_help")),
+                ("QUIT", self.t("start_quit"))
+            ])
+            
+            for i, (action_id, text) in enumerate(start_options):
                 color = (255, 255, 255)
-                if i == 2 and not self.music_enabled: color = (100, 100, 100)
+                if action_id == "MUSIC" and not self.music_enabled: color = (100, 100, 100)
                 txt_surf = self.font.render(text, True, color)
+                
+                # --- Efeito de Pulso (Aumenta e Diminui a letra) ---
+                if self.pending_action == action_id and self.action_timer > 0:
+                    scale = 1.0 + math.sin((10 - self.action_timer) / 10.0 * math.pi) * 0.4
+                    new_w = int(txt_surf.get_width() * scale)
+                    new_h = int(txt_surf.get_height() * scale)
+                    txt_surf = pygame.transform.scale(txt_surf, (new_w, new_h))
+                    
                 self.virtual_surface.blit(txt_surf, (SCREEN_WIDTH//2 - txt_surf.get_width()//2, SCREEN_HEIGHT//2 + i * 50))
         
         elif self.state in ("GAMEOVER", "WIN"):
@@ -3517,24 +3593,31 @@ class Game:
                 self.virtual_surface.blit(title, (center_x - title.get_width()//2, 200))
                 
                 menu_options = [
-                    self.t("opt_music"),
-                    self.t("opt_restart"),
-                    self.t("opt_save"),
-                    self.t("opt_achiv"),
-                    self.t("opt_lang"),
-                    self.t("opt_help"),
-                    self.t("opt_words"),
-                    self.t("opt_resume"),
-                    self.t("opt_quit")
+                    ("MUSIC", self.t("opt_music")),
+                    ("RESTART", self.t("opt_restart")),
+                    ("SAVE", self.t("opt_save")),
+                    ("ACHIV", self.t("opt_achiv")),
+                    ("LANG", self.t("opt_lang")),
+                    ("HELP", self.t("opt_help")),
+                    ("WORDS", self.t("opt_words")),
+                    ("RESUME", self.t("opt_resume")),
+                    ("QUIT", self.t("opt_quit"))
                 ]
                 
-                for i, option in enumerate(menu_options):
+                for i, (action_id, option) in enumerate(menu_options):
                     color = (255, 255, 255)
-                    if "Música" in option or "Music" in option:
-                        if not self.music_enabled: color = (100, 100, 100)
-                    txt = self.font.render(option, True, color)
-                    self.virtual_surface.blit(txt, (center_x - txt.get_width()//2, 350 + i * 50))
-
+                    if action_id == "MUSIC" and not self.music_enabled: color = (100, 100, 100)
+                    txt_surf = self.font.render(option, True, color)
+                    
+                    # --- Efeito de Pulso no Pause Menu ---
+                    if self.pending_action == action_id and self.action_timer > 0:
+                        scale = 1.0 + math.sin((10 - self.action_timer) / 10.0 * math.pi) * 0.4
+                        new_w = int(txt_surf.get_width() * scale)
+                        new_h = int(txt_surf.get_height() * scale)
+                        txt_surf = pygame.transform.scale(txt_surf, (new_w, new_h))
+                        
+                    self.virtual_surface.blit(txt_surf, (center_x - txt_surf.get_width()//2, 350 + i * 50))
+            
             elif self.state in ("MENU_SAVE", "MENU_LOAD"):
                 title_text = self.t("save_confirm") if self.state == "MENU_SAVE" else self.t("load_title")
                 title = self.title_font.render(title_text, True, COLOR_PLAYER)
@@ -3542,7 +3625,7 @@ class Game:
                 
                 txt_voltar = self.font.render(self.t("slot_back"), True, (150, 150, 150))
                 self.virtual_surface.blit(txt_voltar, (center_x - txt_voltar.get_width()//2, 550))
-            
+                
             self.draw_log()
             
         if self.fade_alpha > 0:
@@ -3620,26 +3703,7 @@ class Game:
                 
                 if event.type != pygame.KEYDOWN:
                     continue
-                if event.key == pygame.K_h and self.state != "GAMEOVER":
-                    self.show_help = not self.show_help  # Toggle (abre/fecha)
-                    continue # Impede que o 'h' faça outra coisa
-                if event.key == pygame.K_a:
-                        # Se estiver no menu principal ou no menu de pausa, vai para conquistas
-                        if self.state in ["START", "MENU"]:
-                            self.prev_state = self.state # Salva de onde o jogador veio
-                            self.state = "ACHIEVEMENTS"
-                        # Se já estiver na tela de conquistas, volta de onde veio
-                        elif self.state == "ACHIEVEMENTS":
-                            self.state = self.prev_state
                 
-                if event.key == pygame.K_w:
-                        # Se estiver no menu principal ou no menu de pausa, vai para conquistas
-                        if self.state in ["START", "MENU"]:
-                            self.prev_state = self.state # Salva de onde o jogador veio
-                            self.state = "MESSAGES"
-                        # Se já estiver na tela de conquistas, volta de onde veio
-                        elif self.state == "MESSAGES":
-                            self.state = self.prev_state
                             
                 if event.key == pygame.K_DELETE:
                     if self.state == "ACHIEVEMENTS":
@@ -3655,8 +3719,7 @@ class Game:
                         continue
                     if self.state == "PLAYING":
                         self.set_state("MENU")
-                    elif self.state == "MENU":
-                        self.set_state("PLAYING")
+                    elif self.state == "MENU": self.set_state("PLAYING")
                     elif self.state in ("MENU_SAVE", "MENU_LOAD"):
                         if getattr(self, "origin_state", "MENU") == "START":
                             self.set_state("START")
@@ -3666,30 +3729,45 @@ class Game:
                     continue
                                 
                 if self.state == "START":
-                    if event.key in (pygame.K_SPACE, pygame.K_n): 
-                        self.level, self.inventory = 1, ["EMP", "KIT", "mEMP"]
-                        self.generate_level()
-                        self.reset_game_stats()
-                        self.set_state("PLAYING")
-                        self.message_log = []
-                        self.log_scroll = 0
-                        self.reset_game_stats() # Inicializa as estatísticas ao carregar o jogo
-                    elif event.key in (pygame.K_c, pygame.K_l): 
-                        self.origin_state = "START" 
-                        self.state = "MENU_LOAD"
-                    elif event.key == pygame.K_m: 
-                        self.music_enabled = not self.music_enabled
-                        self.update_music() 
-                    elif event.key == pygame.K_t: 
-                        self.language = "PT" if self.language == "EN" else "EN"
-                    elif event.key == pygame.K_q:
-                        pygame.quit()
-                        sys.exit()
+                    if self.action_timer > 0: continue # Impede de apertar outra tecla
+                        
+                    if event.key in (pygame.K_SPACE, pygame.K_n): self.pending_action = "NEW"
+                    elif event.key in (pygame.K_c, pygame.K_l) and os.path.exists("savegame.json"): self.pending_action = "LOAD"
+                    elif event.key == pygame.K_m: self.pending_action = "MUSIC"
+                    elif event.key == pygame.K_t: self.pending_action = "LANG"
+                    elif event.key == pygame.K_a: self.pending_action = "ACHIV"
+                    elif event.key == pygame.K_w: self.pending_action = "WORDS"
+                    elif event.key == pygame.K_h: self.pending_action = "HELP"
+                    elif event.key == pygame.K_q: self.pending_action = "QUIT"
+                    
+                    if self.pending_action:
+                        self.action_timer = 10
+                        play_beep(600, 0.1) # Beep de feedback sonoro
                     continue 
+                
+                elif self.state in ("ACHIEVEMENTS", "MESSAGES"):
+                    if self.action_timer > 0: continue
+                    if event.key in (pygame.K_ESCAPE, pygame.K_a, pygame.K_w):
+                        # Define para onde voltar baseado de onde veio
+                        self.pending_action = "BACK_TO_START" if self.prev_state == "START" else "BACK_TO_MENU"
+                        self.action_timer = 10
+                        play_beep(600, 0.1)
 
+                # --- Teclas de SAVE / LOAD ---
+                elif self.state in ("MENU_SAVE", "MENU_LOAD"):
+                    if self.action_timer > 0: continue
+                    if event.key == pygame.K_y:
+                        self.pending_action = "CONFIRM_SAVE" if self.state == "MENU_SAVE" else "CONFIRM_LOAD"
+                        self.action_timer = 10
+                        play_beep(600, 0.1)
+                    elif event.key in (pygame.K_n, pygame.K_ESCAPE):
+                        self.pending_action = "BACK_TO_MENU"
+                        self.action_timer = 10
+                        play_beep(600, 0.1)
+                
                 if self.state in ("GAMEOVER", "WIN"):
                     if event.key == pygame.K_SPACE:
-                        self.level, self.inventory = 1, ["EMP", "KIT", "mEMP"]
+                        self.level, self.inventory = 1, ["EMP", "KIT"]
                         self.generate_level()
                         self.reset_game_stats()
                         self.set_state("START")
@@ -3702,29 +3780,21 @@ class Game:
                 
                 if self.state in ("MENU", "MENU_SAVE", "MENU_LOAD"):
                     if self.state == "MENU":                        
-                        if event.key == pygame.K_m:
-                            self.music_enabled = not self.music_enabled
-                            self.update_music()
-                        elif event.key == pygame.K_t: 
-                            self.language = "PT" if self.language == "EN" else "EN"
-                        elif event.key == pygame.K_r:
-                            self.level, self.inventory = 1, ["EMP", "KIT", "mEMP"]
-                            self.generate_level()
-                            self.reset_game_stats()
-                            self.message_log = []
-                            self.log_scroll = 0
-                            self.worlds = {}
-                            self.has_the_book = False
-                            self.player_faith = 0
-                            self.add_log(self.t("log_intro1"))
-                            self.add_log(self.t("log_intro2"))
-                            self.add_log(self.t("log_intro3"))
-                            self.set_state("PLAYING")
-                        elif event.key == pygame.K_s:
-                            self.state = "MENU_SAVE"
-                        elif event.key == pygame.K_q:
-                            pygame.quit()
-                            sys.exit()
+                        if self.action_timer > 0: continue
+                        
+                        if event.key == pygame.K_m: self.pending_action = "MUSIC"
+                        elif event.key == pygame.K_t: self.pending_action = "LANG"
+                        elif event.key == pygame.K_r: self.pending_action = "RESTART"
+                        elif event.key == pygame.K_s: self.pending_action = "SAVE"
+                        elif event.key == pygame.K_a: self.pending_action = "ACHIV"
+                        elif event.key == pygame.K_w: self.pending_action = "WORDS"
+                        elif event.key == pygame.K_h: self.pending_action = "HELP"
+                        elif event.key == pygame.K_ESCAPE: self.pending_action = "RESUME"
+                        elif event.key == pygame.K_q: self.pending_action = "QUIT"
+
+                        if self.pending_action:
+                            self.action_timer = 10
+                            play_beep(600, 0.1)
 
                     elif self.state == "MENU_SAVE":
                         keys = pygame.key.get_pressed()
@@ -3760,6 +3830,12 @@ class Game:
                     #if event.key == pygame.K_g:
                         #self.generate_more_enemies()
                     # --------------------------------------------------
+                    
+                    if event.key == pygame.K_ESCAPE:
+                        self.set_state("MENU")
+                    elif event.key == pygame.K_h: # H agora funciona durante o jogo
+                        self.show_help = not self.show_help
+                    
                     # --- CONTROLE DA LOJA ---
                     if pygame.K_a <= event.key <= pygame.K_e and getattr(self, 'shop_active', False):
                         idx = event.key - pygame.K_a
@@ -3880,6 +3956,12 @@ class Game:
                 if now - self.quit_start_time > 2000: 
                     pygame.quit()
                     sys.exit()
+            # --- Atualizador do Timer de Ação dos Menus ---
+            if self.action_timer > 0:
+                self.action_timer -= 1
+                if self.action_timer == 0:
+                    self.execute_menu_action()
+                    
             self.draw()
             self.clock.tick(30)
                 
