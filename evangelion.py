@@ -1389,10 +1389,16 @@ class Game:
             self.state = "START"
         elif action == "CONFIRM_SAVE":
             self.save_game()
+            self.add_log(self.t("save_final"))
             self.state = "MENU"
+            self.quit_start_time = pygame.time.get_ticks()
+            self.quit = True
         elif action == "CONFIRM_LOAD":
             self.load_game()
-            self.state = "PLAYING"
+            # O load_game() já altera o state para "PLAYING" se tiver sucesso.
+        elif action == "BACK_TO_START":
+            self.set_state("START")
+            self.origin_state = "MENU" 
         elif action == "QUIT":
             pygame.quit()
             sys.exit()
@@ -1514,8 +1520,9 @@ class Game:
         return False
     
     
+    
+    
     def get_path_to_target(self, start_x, start_y, target_x, target_y):
-        directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
         queue = [(start_x, start_y, [])]
         visited = set()
         visited.add((start_x, start_y))
@@ -1525,6 +1532,16 @@ class Game:
             if cx == target_x and cy == target_y:
                 return path
                 
+            # --- CORREÇÃO AQUI ---
+            directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
+            
+            # 1. Embaralhamos para quebrar padrões viciados de empate
+            random.shuffle(directions)
+            
+            # 2. Ordenamos as direções para priorizar a que deixa o NPC mais próximo do alvo.
+            # Isso força o guarda a fechar a distância na diagonal real ao invés de imitar o jogador.
+            directions.sort(key=lambda d: abs((cx + d[0]) - target_x) + abs((cy + d[1]) - target_y))
+
             for dx, dy in directions:
                 nx, ny = cx + dx, cy + dy
                 if 0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT:
@@ -2088,8 +2105,8 @@ class Game:
         used_rooms = {0, idx_exit, idx_terminal, idx_msg, idx_bible}
         possible_ally_rooms = [i for i in range(len(rooms)) if i not in used_rooms]
         
-        #if self.level % 3 == 0 and possible_ally_rooms and random.random() < 0.5:
-        if self.level == 1 and possible_ally_rooms and random.random() < 1.0: #debug da prisão
+        if self.level % 3 == 0 and possible_ally_rooms and random.random() < 0.5:
+        #if self.level == 1 and possible_ally_rooms and random.random() < 1.0: #debug da prisão
             idx_ally = random.choice(possible_ally_rooms)
             ax, ay = rooms[idx_ally].center()
             ally = Ally(ax, ay)
@@ -3621,9 +3638,23 @@ class Game:
             elif self.state in ("MENU_SAVE", "MENU_LOAD"):
                 title_text = self.t("save_confirm") if self.state == "MENU_SAVE" else self.t("load_title")
                 title = self.title_font.render(title_text, True, COLOR_PLAYER)
+                
+                if self.pending_action in ("CONFIRM_SAVE", "CONFIRM_LOAD") and self.action_timer > 0:
+                    scale = 1.0 + math.sin((10 - self.action_timer) / 10.0 * math.pi) * 0.2
+                    new_w = int(title.get_width() * scale)
+                    new_h = int(title.get_height() * scale)
+                    title = pygame.transform.scale(title, (new_w, new_h))
+                    
                 self.virtual_surface.blit(title, (center_x - title.get_width()//2, 200))
                 
                 txt_voltar = self.font.render(self.t("slot_back"), True, (150, 150, 150))
+                
+                if self.pending_action in ("BACK_TO_MENU", "BACK_TO_START") and self.action_timer > 0:
+                    scale = 1.0 + math.sin((10 - self.action_timer) / 10.0 * math.pi) * 0.4
+                    new_w = int(txt_voltar.get_width() * scale)
+                    new_h = int(txt_voltar.get_height() * scale)
+                    txt_voltar = pygame.transform.scale(txt_voltar, (new_w, new_h))
+                    
                 self.virtual_surface.blit(txt_voltar, (center_x - txt_voltar.get_width()//2, 550))
                 
             self.draw_log()
@@ -3720,12 +3751,6 @@ class Game:
                     if self.state == "PLAYING":
                         self.set_state("MENU")
                     elif self.state == "MENU": self.set_state("PLAYING")
-                    elif self.state in ("MENU_SAVE", "MENU_LOAD"):
-                        if getattr(self, "origin_state", "MENU") == "START":
-                            self.set_state("START")
-                            self.origin_state = "MENU" 
-                        else:
-                            self.set_state("MENU")
                     continue
                                 
                 if self.state == "START":
@@ -3756,14 +3781,19 @@ class Game:
                 # --- Teclas de SAVE / LOAD ---
                 elif self.state in ("MENU_SAVE", "MENU_LOAD"):
                     if self.action_timer > 0: continue
+                    
                     if event.key == pygame.K_y:
                         self.pending_action = "CONFIRM_SAVE" if self.state == "MENU_SAVE" else "CONFIRM_LOAD"
                         self.action_timer = 10
                         play_beep(600, 0.1)
                     elif event.key in (pygame.K_n, pygame.K_ESCAPE):
-                        self.pending_action = "BACK_TO_MENU"
+                        if getattr(self, "origin_state", "MENU") == "START":
+                            self.pending_action = "BACK_TO_START"
+                        else:
+                            self.pending_action = "BACK_TO_MENU"
                         self.action_timer = 10
                         play_beep(600, 0.1)
+                    continue
                 
                 if self.state in ("GAMEOVER", "WIN"):
                     if event.key == pygame.K_SPACE:
@@ -3795,28 +3825,6 @@ class Game:
                         if self.pending_action:
                             self.action_timer = 10
                             play_beep(600, 0.1)
-
-                    elif self.state == "MENU_SAVE":
-                        keys = pygame.key.get_pressed()
-                        if keys[pygame.K_y]:
-                            self.save_game()
-                            self.add_log(self.t("save_final"))
-                            self.state = "MENU"
-                            self.quit_start_time = pygame.time.get_ticks()
-                            self.quit = True
-                        elif keys[pygame.K_n]:
-                            self.state = "PLAYING"
-                            
-
-                    elif self.state == "MENU_LOAD":
-                        keys = pygame.key.get_pressed()
-                        keys = pygame.key.get_pressed()
-                        if keys[pygame.K_y]:
-                            self.load_game()
-                        elif keys[pygame.K_n]:
-                            self.state = "START"
-                        
-                       
                     continue 
                 
                 if self.state == "PLAYING":
