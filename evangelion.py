@@ -2693,10 +2693,7 @@ class Game:
 
 
                             if tile == TILE_ITEM:
-                                if self.level < 6:
-                                    self.inventory.append(random.choice(["EMP", "KIT", "INV","HACK","EMP","INV","HACK", "DECOY"]))
-                                else:
-                                    self.inventory.append(random.choice(["EMP", "KIT", "INV","HACK","EMP","INV","HACK", "DECOY", "mEMP"]))
+                                self.inventory.append(random.choice(["EMP", "KIT", "INV","HACK","EMP","mEMP","HACK", "DECOY", "INV"]))
                                 self.stats_items_collected += 1
                                 if self.stats_items_collected == 10:
                                     self.unlock_achievement("treasure")
