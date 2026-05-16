@@ -61,7 +61,7 @@ TILE_STAIR_UP = "<"
 TILE_SPIKES, TILE_SENSOR, TILE_DRUNK = '^', 's', ";"
 TILE_LASER_V, TILE_LASER_H = '|', '-'
 TILE_TERMINAL, TILE_ITEM = 'T', '*'
-TILE_MESSAGE = chr(9834) # ♪
+TILE_MESSAGE = chr(8224)
 TILE_BIBLE = "B"
 TILE_BARS_1 = '/'
 TILE_BARS_2 = '\\'
@@ -141,7 +141,7 @@ TEXTS = {
         "log_shadow_in": "Entering a dark area",
         "log_shadow_out": "Leaving a dark area",
         "log_shadow": "Hide stunned enemies in the shadows",
-        "log_msg_req": "SYSTEM: FIND THE MESSAGE ♪ FIRST!",
+        "log_msg_req": "SYSTEM: FIND THE MESSAGE † FIRST!",
         "log_alarm": "ALARM ACTIVE!",
         "log_intruder": "ALERT: INTRUDER DETECTED IN SECTOR!",
         "log_hack_ok": "SYSTEM: ACCESS GRANTED. DATA TRANSMITTED.",
@@ -340,7 +340,7 @@ TEXTS = {
         "log_shadow_in": "Entrando em uma área escura",
         "log_shadow_out": "Saindo de uma área escura",
         "log_shadow": "Esconda inimigos atordoados nas sombras",
-        "log_msg_req": "SISTEMA: ENCONTRE A MENSAGEM ♪ PRIMEIRO!",
+        "log_msg_req": "SISTEMA: ENCONTRE A MENSAGEM † PRIMEIRO!",
         "log_alarm": "ALARME ATIVO!",
         "log_intruder": "ALERTA: INTRUSO DETECTADO NO SETOR!",
         "log_hack_ok": "SISTEMA: ACESSO CONCEDIDO. DADOS TRANSMITIDOS.",
@@ -1012,11 +1012,30 @@ class Game:
         
         self.caught_timer = 0
         self.caught_start_time = 0 
-               
-        self.font = pygame.font.SysFont('Consolas', FONT_SIZE, bold=True)
-        self.m_font = pygame.font.SysFont('Consolas', 20, bold=True)
-        self.small_font = pygame.font.SysFont('Consolas', 16, bold=True) 
-        self.title_font = pygame.font.SysFont('Consolas', 50, bold=True)
+        
+        
+        #self.font = pygame.font.SysFont('Consolas', FONT_SIZE, bold=True)
+        #self.m_font = pygame.font.SysFont('Consolas', 20, bold=True)
+        #self.small_font = pygame.font.SysFont('Consolas', 16, bold=True) 
+        #self.title_font = pygame.font.SysFont('Consolas', 50, bold=True)
+        try:
+            # 1. Busca o caminho do arquivo .ttf
+            self.caminho_fonte = self.resource_path('Consolas-Bold.ttf')
+            
+            # 2. Carrega usando pygame.font.Font (para arquivos locais)
+            self.font = pygame.font.Font(self.caminho_fonte, FONT_SIZE)
+            self.m_font = pygame.font.Font(self.caminho_fonte, 20)
+            self.small_font = pygame.font.Font(self.caminho_fonte, 16) 
+            self.title_font = pygame.font.Font(self.caminho_fonte, 50)
+            
+            # 3. Aplica o negrito (bold) via código em cada uma delas
+            #self.font.set_bold(True)
+            #self.m_font.set_bold(True)
+            #self.small_font.set_bold(True)
+            #self.title_font.set_bold(True)
+        except Exception as e:
+            print(f"Erro ao carregar fonte: {e}")
+        
         
         self.clock = pygame.time.Clock()
         self.state = "START"
@@ -2248,10 +2267,9 @@ class Game:
             self.shop_trades_left = 2
             if self.level < 8:
                 self.shop_trades_left = 2
-                items_pool = ["EMP", "KIT", "INV", "HACK", "DECOY"]
             else:
                 self.shop_trades_left = 3
-                items_pool = ["EMP", "KIT", "INV", "HACK", "DECOY", "mEMP"]
+            items_pool = ["EMP", "KIT", "INV", "HACK", "DECOY", "mEMP"]
             self.shop_inventory = [random.choice(items_pool) for _ in range(5)]
             if len(self.rooms) > 1:
                 shop_room = random.choice(self.rooms[1:])
@@ -2670,7 +2688,7 @@ class Game:
                                             self.tiles.remove(i)
 
                                 lang_db = MENSAGENS_DB[self.level][self.language]
-                                txt = f"♪ {lang_db['ref']}: {lang_db['texto']}"
+                                txt = f"† {lang_db['ref']}: {lang_db['texto']}"
                                 self.add_log(txt) 
                                 play_beep(600, 0.1); play_beep(800, 0.2)
 
@@ -2907,10 +2925,7 @@ class Game:
                     a.escaped = True
                     self.add_log(self.t("log_ally_escaped"))
                     if len(self.inventory) < MAX_INVENTORY:
-                        if self.level < 6:
-                            self.inventory.append(random.choice(["EMP", "KIT", "INV", "HACK", "DECOY"]))
-                        else:
-                            self.inventory.append(random.choice(["EMP", "KIT", "INV", "HACK", "DECOY", "mEMP"]))   
+                        self.inventory.append(random.choice(["EMP", "KIT", "INV", "HACK", "DECOY", "mEMP"]))  
                         self.stats_items_collected += 1
                 else:
                     # Descobre a sala atual do aliado e a sala da escada
@@ -3088,7 +3103,7 @@ class Game:
                 alpha = 255 if (i + start_idx) == len(self.message_log) - 1 else 180
                 color = (alpha, alpha, alpha)
                 
-                if "♪" in msg: color = (200, 255, 200)
+                if "†" in msg: color = (200, 255, 200)
                 if "ALERTA" in msg or "ALERT" in msg: color = (255, 100, 100)
                 
                 lbl = self.font.render(msg, True, color)
