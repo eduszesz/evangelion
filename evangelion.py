@@ -7,6 +7,23 @@ import os
 import json
 
 
+# --- NOVA FUNÇÃO DE CAMINHO SEGURO ---
+def obter_caminho_save(nome_arquivo):
+    """Determina o local seguro para salvar arquivos dependendo do SO e ambiente."""
+    if os.environ.get("XDG_DATA_HOME"):
+        # Ambiente Flatpak no Linux
+        base_dir = os.environ.get("XDG_DATA_HOME")
+    elif os.name == 'nt':
+        # Ambiente Windows (AppData\Roaming\Evangelion)
+        base_dir = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "Evangelion")
+    else:
+        # Linux nativo padrão / Mac (pasta oculta ~/.evangelion na home do usuário)
+        base_dir = os.path.join(os.path.expanduser("~"), ".evangelion")
+        
+    # Garante que a pasta exista antes de tentar salvar nela
+    os.makedirs(base_dir, exist_ok=True)
+    return os.path.join(base_dir, nome_arquivo)
+
 # --- Configurações Gerais ---
 SCREEN_WIDTH, SCREEN_HEIGHT = 1500, 980
 FONT_SIZE = 24
@@ -1075,7 +1092,7 @@ class Game:
 
     def load_achievements(self):
         """Carrega as conquistas salvas de sessões anteriores."""
-        filename = "achievements.json"
+        filename = obter_caminho_save("achievements.json") # MODIFICADO AQUI
         self.unlocked_achievements = set() # Garante que inicie vazio
         
         if os.path.exists(filename):
@@ -1089,7 +1106,7 @@ class Game:
 
     def save_achievements(self):
         """Salva as conquistas atuais no arquivo JSON."""
-        filename = "achievements.json"
+        filename = obter_caminho_save("achievements.json") # MODIFICADO AQUI
         try:
             with open(filename, "w") as f:
                 # Converte o set para lista antes de salvar
@@ -1583,7 +1600,7 @@ class Game:
     
     def save_game(self):
         self.save_current_level()
-        filename = "savegame.json"
+        filename = obter_caminho_save("savegame.json")
         
         serialized_worlds = {}
         for lvl_num, data in self.worlds.items():
@@ -1658,7 +1675,7 @@ class Game:
             self.add_log(self.t("log_save_err", e))
     
     def load_game(self):
-        filename = "savegame.json" # Arquivo único
+        filename = obter_caminho_save("savegame.json")
         
         if not os.path.exists(filename):
             self.add_log(self.t("log_load_emp"))
@@ -1838,7 +1855,7 @@ class Game:
             
     
     def delete_save(self, slot=1):
-        filename = f"savegame_slot{slot}.json"
+        filename = obter_caminho_save(f"savegame_slot{slot}.json")
         if os.path.exists(filename):
             try:
                 os.remove(filename)
@@ -3129,7 +3146,7 @@ class Game:
             music_txt = self.t("music_on") if self.music_enabled else self.t("music_off")
             
             # --- Verifica se há save para montar as opções ---
-            has_save = os.path.exists("savegame.json")
+            has_save = os.path.exists(obter_caminho_save("savegame.json"))
             
             start_options = [("NEW", self.t("start_new"))]
             if has_save:
@@ -3769,7 +3786,7 @@ class Game:
                     if self.action_timer > 0: continue # Impede de apertar outra tecla
                         
                     if event.key in (pygame.K_SPACE, pygame.K_n): self.pending_action = "NEW"
-                    elif event.key in (pygame.K_c, pygame.K_l) and os.path.exists("savegame.json"): self.pending_action = "LOAD"
+                    elif event.key in (pygame.K_c, pygame.K_l) and os.path.exists(obter_caminho_save("savegame.json")): self.pending_action = "LOAD"
                     elif event.key == pygame.K_m: self.pending_action = "MUSIC"
                     elif event.key == pygame.K_t: self.pending_action = "LANG"
                     elif event.key == pygame.K_a: self.pending_action = "ACHIV"
