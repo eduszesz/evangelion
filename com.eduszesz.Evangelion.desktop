@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Evangelion
+Comment=A stealth roguelike game made with Python and Pygame
+Exec=evangelion-run
+Icon=icon-at
+Categories=Game;ActionGame;
+Terminal=false

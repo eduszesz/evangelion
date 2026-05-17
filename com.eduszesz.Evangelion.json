@@ -1,0 +1,65 @@
+{
+    "app-id": "com.eduszesz.Evangelion",
+    "runtime": "org.freedesktop.Platform",
+    "runtime-version": "23.08",
+    "sdk": "org.freedesktop.Sdk",
+    "command": "evangelion-run",
+    "finish-args": [
+        "--share=ipc",
+        "--socket=x11",
+        "--socket=wayland",
+        "--socket=pulseaudio",
+        "--device=dri"
+    ],
+    "modules": [
+        "python3-pygame.json",
+        {
+            "name": "evangelion",
+            "buildsystem": "simple",
+            "build-commands": [
+                "install -D evangelion.py /app/bin/evangelion.py",
+                "install -D evangelion-run /app/bin/evangelion-run",
+                "install -D tema_inicio2.mp3 /app/bin/tema_inicio2.mp3",
+                "install -D tema_stealth.mp3 /app/bin/tema_stealth.mp3",
+                "install -D tema_alerta.mp3 /app/bin/tema_alerta.mp3",
+                "install -D icon-at.png /app/bin/icon-at.png",
+                "install -D Consolas-Bold.ttf /app/bin/Consolas-Bold.ttf",
+                "install -D com.eduszesz.Evangelion.desktop /app/share/applications/com.eduszesz.Evangelion.desktop",
+                "install -D icon-at.png /app/share/icons/hicolor/256x256/apps/com.eduszesz.Evangelion.png",
+                "install -D com.eduszesz.Evangelion.metainfo.xml /app/share/metainfo/com.eduszesz.Evangelion.metainfo.xml"
+            ],
+            "sources": [
+                {
+                    "type": "file",
+                    "path": "evangelion.py"
+                },
+                {
+                    "type": "file",
+                    "path": "evangelion-run"
+                },
+                {
+                    "type": "file",
+                    "path": "tema_inicio2.mp3"
+                },
+                {
+                    "type": "file",
+                    "path": "tema_stealth.mp3"
+                },
+                {
+                    "type": "file",
+                    "path": "tema_alerta.mp3"
+                },
+                {
+                    "type": "file",
+                    "path": "icon-at.png"
+                },
+                {
+                    "type": "file",
+                    "path": "Consolas-Bold.ttf"
+                },
+                { "type": "file", "path": "com.eduszesz.Evangelion.desktop" },
+                { "type": "file", "path": "com.eduszesz.Evangelion.metainfo.xml" }
+            ]
+        }
+    ]
+}

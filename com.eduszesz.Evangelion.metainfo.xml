@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.eduardomioduski.Evangelion</id>
+  
+  <name>Evangelion</name>
+  <summary>Um jogo stealth roguelike tático</summary>
+  
+  <metadata_license>FSFAP</metadata_license>
+  <project_license>MIT</project_license>
+  
+  <description>
+    <p>
+      Evangelion é um jogo de furtividade (stealth) com elementos roguelike, 
+      onde você precisa invadir instalações geradas proceduralmente. 
+      Evite o campo de visão dos guardas, use o ambiente a seu favor e escape 
+      sem ser detectado.
+    </p>
+  </description>
+  
+  <launchable type="desktop-id">com.eduardomioduski.Evangelion.desktop</launchable>
+  
+  <screenshots>
+    <screenshot type="default">
+      <image>https://link-para-sua-imagem-no-github.com/screenshot1.png</image>
+    </screenshot>
+  </screenshots>
+
+  <content_rating type="oars-1.1" />
+
+  <releases>
+    <release version="1.0" date="2026-05-17">
+      <description>
+        <p>Lançamento inicial do jogo.</p>
+      </description>
+    </release>
+  </releases>
+</component>
