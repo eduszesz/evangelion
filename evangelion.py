@@ -1,3 +1,10 @@
+# Evangelion (εv@ngεlion) is a game made by Eduardo Szesz using Python and Pygame.
+# License:  GNU General Public License v3 (GPLv3)
+# Evangelion is free software and can be redistributed/modified under the terms of the GPLv3
+# Copyright 2026 by Eduardo Szesz
+# Song Out of Control, by RobbyDuguay License: CC4-BY-NC-SA
+# Song Eyes in the Dark, by Gruber License: CC4-BY-NC-SA
+
 import pygame
 import random
 import math
@@ -268,6 +275,9 @@ TEXTS = {
         "help_obj": "OBJECTIVE: Find the message, hack terminal, get the Book at level 12",
         "help_interact": "INTERACT: Move into Terminals, Shops, and Panels",
         "help_shadow": "HIDE STUNNED ENEMIES: shift+arrow keys pull, arrow keys push",
+        "help_about1": "License:  GNU General Public License v3 (GPLv3)",
+        "help_about2": "Evangelion is free software and can be redistributed/modified under the terms of the GPLv3",
+        "help_about3": "Copyright 2026 by Eduardo Szesz",
         "log_body_seen": "ALERT: UNCONSCIOUS PERSONNEL SPOTTED!",
         "log_mEMP_seen": "ALERT: TRAP DETECTED - INTRUDER ALERT!",
         "achiv_stun": "Stunned!",
@@ -467,6 +477,9 @@ TEXTS = {
         "help_obj": "OBJETIVO: Achar a mensagem, hackear o terminal, , pegar O Livro no Nível 12",
         "help_interact": "INTERAÇÃO: Ande na direção de Terminais, Lojas e Painéis",
         "help_shadow": "ESCONDA INIMIGOS ATORDOADOS: Shift + setas para puxar, setas para empurrar",
+        "help_about1": "Licença:  GNU General Public License v3 (GPLv3)",
+        "help_about2": "Evangelion é software livre e pode ser modificado/redistribuído de acordo com GPLv3",
+        "help_about3": "Copyright 2026 por Eduardo Szesz",
         "log_body_seen": "ALERTA: PESSOA INCONSCIENTE - SUSPEITA DE INTRUSO!",
         "log_mEMP_seen": "ALERTA: ARMADILHA DETECTADA - SUSPEITA DE INTRUSO!",
         "achiv_stun": "Atordoado!!",
@@ -1329,7 +1342,7 @@ class Game:
         overlay.fill((0, 0, 0, 220)) 
         self.virtual_surface.blit(overlay, (0, 0)) # Desenha na virtual_surface
     
-        w, h = 820, 500
+        w, h = 840, 525
         x = (sw - w) // 2
         y = (sh - h) // 2
     
@@ -1352,6 +1365,9 @@ class Game:
             ("help_interact", (255, 255, 255), False),
             ("help_shadow", (255, 255, 255), False),
             ("help_up_down", (255, 255, 255), False),
+            ("help_about1", (255, 255, 255), False),
+            ("help_about2", (255, 255, 255), False),
+            ("help_about3", (255, 255, 255), False),
             ("", None, False),
             ("help_tip", (180, 180, 180), False),
             ("", None, False),
@@ -1366,6 +1382,7 @@ class Game:
             
             text_str = self.t(key)
             font_to_use = self.font if is_title else self.small_font
+            #font_to_use = self.small_font
             text_surf = font_to_use.render(text_str, True, color)
             
             text_x = (sw - text_surf.get_width()) // 2
