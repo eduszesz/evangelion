@@ -1050,7 +1050,7 @@ class Game:
         #self.title_font = pygame.font.SysFont('Consolas', 50, bold=True)
         try:
             # 1. Busca o caminho do arquivo .ttf
-            self.caminho_fonte = self.resource_path('Consolas-Bold.ttf')
+            self.caminho_fonte = self.resource_path('dejavu-sans-mono.bold.ttf')
             
             # 2. Carrega usando pygame.font.Font (para arquivos locais)
             self.font = pygame.font.Font(self.caminho_fonte, FONT_SIZE)
