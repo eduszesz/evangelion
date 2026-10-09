@@ -1162,7 +1162,7 @@ class Game:
         # 3. Título centralizado
         title_str = "CONQUISTAS" if self.language == "PT" else "ACHIEVEMENTS"
         title_surf = self.title_font.render(title_str, True, COLOR_PLAYER)
-        self.virtual_surface.blit(title_surf, (center_x - title_surf.get_width()//2, 80))
+        self.virtual_surface.blit(title_surf, (center_x - title_surf.get_width()//2, 70))
         
         # Lista de conquistas
         achievements_list = [
@@ -1170,25 +1170,29 @@ class Game:
             "pacifist", "preacher", "graham", "caught", "win", "jail"
         ]
         
-        # Configuração das duas colunas centralizadas
-        col_width = 500
-        start_x = center_x - col_width # Início da coluna esquerda
-        start_y = 180
+        # Configuração das duas colunas aproveitando a largura de 1500px:
+        # Coluna 0: X = 100 (vai até ~700px)
+        # Coluna 1: X = 800 (vai até ~1400px)
+        # Vão central livre de 100px entre elas
+        start_x_col0 = 100
+        start_x_col1 = 800
+        start_y = 165
+        row_spacing = 95
         
         for i, achiv_id in enumerate(achievements_list):
             is_unlocked = achiv_id in self.unlocked_achievements
             
-            # Cores padrão do jogo: Verde (COLOR_PLAYER) se ativo, Cinza se bloqueado
+            # Cores padrão do jogo: Verde se ativo, Cinza se bloqueado
             title_color = COLOR_ITEM if is_unlocked else (100, 100, 100)
             desc_color = (200, 200, 200) if is_unlocked else (60, 60, 60)
             
             title_text = self.t(f"achiv_{achiv_id}")
             desc_text = self.t(f"achiv_{achiv_id}_text")
             
-            # Esconde o texto de conquistas não alcançadas
+            # Esconde o texto se nenhuma conquista foi obtida ainda
             if len(self.unlocked_achievements) == 0:
                 title_text = "???"
-                desc_text = "???" if self.language == "PT" else "???"
+                desc_text = "???"
             
             t_surf = self.font.render(title_text, True, title_color)
             d_surf = self.small_font.render(desc_text, True, desc_color)
@@ -1196,19 +1200,19 @@ class Game:
             col = i % 2
             row = i // 2
             
-            # Posição calculada com um padding de 40px para não encostar no centro
-            pos_x = start_x + (col * col_width) + 40 
-            pos_y = start_y + (row * 85)
+            pos_x = start_x_col0 if col == 0 else start_x_col1
+            pos_y = start_y + (row * row_spacing)
             
             self.virtual_surface.blit(t_surf, (pos_x, pos_y))
-            self.virtual_surface.blit(d_surf, (pos_x, pos_y + 30))
+            # Distância vertical de 34px para evitar colisão com descenders
+            self.virtual_surface.blit(d_surf, (pos_x, pos_y + 34))
 
-        # 4. Rodapé de comandos (posicionado pouco antes de a área do log começar)
+        # 4. Rodapé de comandos
         back_str = "(ESC/A) VOLTAR  |  (DEL) APAGAR PROGRESSO" if self.language == "PT" else "(ESC/A) BACK  |  (DEL) RESET PROGRESS"
         back_surf = self.font.render(back_str, True, (150, 150, 150))
-        self.virtual_surface.blit(back_surf, (center_x - back_surf.get_width()//2, map_px_height - 60))
+        self.virtual_surface.blit(back_surf, (center_x - back_surf.get_width()//2, map_px_height - 50))
 
-        # 5. O SEGREDO: Chama o próprio método de Log do jogo para preencher os últimos 130 pixels
+        # 5. Log na base da tela
         self.draw_log()
     
     
