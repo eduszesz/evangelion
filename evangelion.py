@@ -1044,10 +1044,7 @@ class Game:
         self.caught_start_time = 0 
         
         
-        #self.font = pygame.font.SysFont('Consolas', FONT_SIZE, bold=True)
-        #self.m_font = pygame.font.SysFont('Consolas', 20, bold=True)
-        #self.small_font = pygame.font.SysFont('Consolas', 16, bold=True) 
-        #self.title_font = pygame.font.SysFont('Consolas', 50, bold=True)
+        
         try:
             # 1. Busca o caminho do arquivo .ttf
             self.caminho_fonte = self.resource_path('dejavu-sans-mono.bold.ttf')
@@ -1058,11 +1055,6 @@ class Game:
             self.small_font = pygame.font.Font(self.caminho_fonte, 16) 
             self.title_font = pygame.font.Font(self.caminho_fonte, 50)
             
-            # 3. Aplica o negrito (bold) via código em cada uma delas
-            #self.font.set_bold(True)
-            #self.m_font.set_bold(True)
-            #self.small_font.set_bold(True)
-            #self.title_font.set_bold(True)
         except Exception as e:
             print(f"Erro ao carregar fonte: {e}")
         

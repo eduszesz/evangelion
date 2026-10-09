@@ -32,7 +32,7 @@
                     "type": "git",
                     "url": "https://github.com/eduszesz/evangelion.git",
                     "tag": "v1.0",
-                    "commit": "INSIRA_O_COMMIT_HASH_DA_TAG_AQUI"
+                    "commit": "91507d94e64b8caead2f473a54b1fc8eab7fecef"
                 }
             ]
         }
