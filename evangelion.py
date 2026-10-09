@@ -1338,7 +1338,7 @@ class Game:
         overlay.fill((0, 0, 0, 220)) 
         self.virtual_surface.blit(overlay, (0, 0)) # Desenha na virtual_surface
     
-        w, h = 840, 525
+        w, h = 900, 525
         x = (sw - w) // 2
         y = (sh - h) // 2
     
