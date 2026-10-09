@@ -1070,7 +1070,7 @@ class Game:
         
         self.player_faith = 0
         
-        self.stats_messages_sent = 12
+        self.stats_messages_sent = 0
         self.generate_level()
         self.move_cooldown = 0
         self.update_music()
@@ -1716,7 +1716,7 @@ class Game:
             self.stats_npcs_stunned = data.get("stats_npcs_stunned", 0)
             self.stats_items_collected = data.get("stats_items_collected", 0)
             self.stats_allies_freed = data.get("stats_allies_freed", 0)
-            self.stats_messages_sent = data.get("stats_messages_sent", 12)
+            self.stats_messages_sent = data.get("stats_messages_sent", 0)
             self.stats_guards_convert = data.get("stat_convert",0)
             self.stats_traps = data.get("stat_traps",0)
             self.stats_break = data.get("stats_break",0)
@@ -1929,7 +1929,7 @@ class Game:
         self.stats_npcs_stunned = 0
         self.stats_items_collected = 0
         self.stats_allies_freed = 0
-        self.stats_messages_sent = 12
+        self.stats_messages_sent = 0
         self.stats_guards_convert = 0
         self.stats_traps = 0
         self.stats_break = 0
