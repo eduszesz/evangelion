@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>com.eduszesz.Evangelion</id>
+  <id>io.github.eduszesz.Evangelion</id>
   
   <name>Evangelion</name>
   <summary>A tactical stealth roguelike game</summary>
@@ -8,7 +8,7 @@
   <metadata_license>FSFAP</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
   
-  <developer id="io.github.eduszesz.Evangelion">
+  <developer id="io.github.eduszesz">
     <name>Eduardo Szesz</name>
   </developer>
   
