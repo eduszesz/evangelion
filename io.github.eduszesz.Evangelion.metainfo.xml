@@ -8,7 +8,7 @@
   <metadata_license>FSFAP</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
   
-  <developer id="com.eduszesz">
+  <developer id="io.github.eduszesz.Evangelion">
     <name>Eduardo Szesz</name>
   </developer>
   
@@ -23,7 +23,7 @@
   <url type="homepage">https://github.com/eduszesz/evangelion</url>
   <url type="bugtracker">https://github.com/eduszesz/evangelion/issues</url>
   
-  <launchable type="desktop-id">com.eduszesz.Evangelion.desktop</launchable>
+  <launchable type="desktop-id">io.github.eduszesz.Evangelion.desktop</launchable>
   
   <screenshots>
     <screenshot type="default">
