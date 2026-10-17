@@ -1012,7 +1012,7 @@ class Game:
         # Substitua SCREEN_WIDTH e SCREEN_HEIGHT por start_w e start_h na tela física e no current_window_size.
         # A virtual_surface continua com os valores originais para manter a proporção do seu mapa.
         self.screen = pygame.display.set_mode((start_w, start_h), pygame.RESIZABLE)
-        self.virtual_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.virtual_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT)).convert()
         self.current_window_size = (start_w, start_h)
         
         try:
@@ -1035,10 +1035,11 @@ class Game:
         self.message_log = []     
         self.log_scroll = 0       
         
-        self.fade_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.fade_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT)).convert()
         self.fade_surface.fill((0, 0, 0))
         self.fade_alpha = 255 
-        self.fade_speed = 255 / (2 * 30) 
+        #self.fade_speed = 255 / (2 * 30) 
+        self.fade_speed = 255 / 10
         
         self.caught_timer = 0
         self.caught_start_time = 0 
@@ -1392,13 +1393,8 @@ class Game:
         self.pending_action = None
         
         if action == "NEW":
-            self.level, self.inventory = 1, ["EMP", "KIT"]
-            self.generate_level()
             self.reset_game_stats()
             self.set_state("PLAYING")
-            self.message_log = []
-            self.log_scroll = 0
-            self.reset_game_stats()
         elif action == "LOAD":
             self.origin_state = "START" 
             self.state = "MENU_LOAD"
@@ -1416,17 +1412,7 @@ class Game:
         elif action == "HELP":
             self.show_help = not self.show_help
         elif action == "RESTART":
-            self.level, self.inventory = 1, ["EMP", "KIT"]
-            self.generate_level()
             self.reset_game_stats()
-            self.message_log = []
-            self.log_scroll = 0
-            self.worlds = {}
-            self.has_the_book = False
-            self.player_faith = 0
-            self.add_log(self.t("log_intro1"))
-            self.add_log(self.t("log_intro2"))
-            self.add_log(self.t("log_intro3"))
             self.set_state("PLAYING")
         elif action == "SAVE":
             self.state = "MENU_SAVE"
@@ -1924,6 +1910,7 @@ class Game:
     def reset_game_stats(self):
         self.level, self.inventory = 1, ["EMP", "KIT"]
         self.total_turns = 0
+        self.player_faith = 0
         self.accumulated_time = 0
         self.game_start_time = pygame.time.get_ticks()
         self.stats_npcs_stunned = 0
@@ -3708,14 +3695,14 @@ class Game:
             if self.fade_alpha < 0:
                 self.fade_alpha = 0
         
-        window_size = self.screen.get_size()
-        scaled_surface = pygame.transform.scale(self.virtual_surface, window_size)
-        self.screen.fill((0, 0, 0))
-        self.screen.blit(scaled_surface, (0, 0))
+        # Desenha popups e ajuda na superfície virtual ANTES do redimensionamento único
         if self.show_help:
             self.draw_help()
         self.draw_achievement_popup()
+
+        # Apenas UM redimensionamento por quadro
         scaled_surface = pygame.transform.scale(self.virtual_surface, self.current_window_size)
+        self.screen.fill((0, 0, 0))
         self.screen.blit(scaled_surface, (0, 0))
         pygame.display.flip()
 
