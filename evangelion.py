@@ -4,7 +4,7 @@
 # Copyright 2026 by Eduardo Szesz
 # Song Out of Control, by RobbyDuguay License: CC4-BY-NC-SA
 # Song Eyes in the Dark, by Gruber License: CC4-BY-NC-SA
-# Evangelion = Good news = There ir salvation in Jesus
+# Evangelion = Good news = There is salvation in Jesus
 
 import pygame
 import random
